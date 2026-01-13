@@ -1,0 +1,25 @@
+{
+  "name": "r00ts_server",
+  "version": "1.0.0",
+  "description": "Project repository for `r00ts` by [AIxDESIGN](https://aixdesign.co)",
+  "license": "ISC",
+  "author": "Arran Lyon & AIxDESIGN",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "nodemon index.js"
+  },
+  "dependencies": {
+    "dotenv": "^17.2.3",
+    "ejs": "^3.1.10",
+    "express": "^5.2.1",
+    "express-session": "^1.18.2",
+    "sqlite": "^5.1.1",
+    "sqlite3": "^5.1.7"
+  },
+  "devDependencies": {
+    "csv-parser": "^3.2.0",
+    "nodemon": "^3.1.11"
+  }
+}

@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>r00ts Database</title>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-ka7Sk0Gln4gmtz2MlQnikT1wXgYsOg+OMhuP+IlRH9sENBO0LRn5q+8nbTov4+1p" crossorigin="anonymous"></script>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+</head>
+
+<body class="bg-light">
+
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="<%= root %>/dashboard">r00ts Database</a>
+      <div class="text-end">
+        <a href="<%= root %>/login"><button class="btn btn-primary me-2">login</button></a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- List of Articles -->
+  <div class="card my-4 p-3">
+    <h4>Articles</h4>
+    <table class="table">
+      <thead>
+        <tr>
+          <th scope="col">id</th>
+          <th scope="col-6">title</th>
+          <th scope="col">type</th>
+          <th scope="col">source</th>
+          <th scope="col">date</th>
+          <th scope="col">impacts</th>
+          <th scope="col">communities</th>
+          <th scope="col">place</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% if (articles.length===0) { %>
+        <tr>
+          <td colspan="8" class="text-center">
+            No articles found!
+          </td>
+        </tr>
+        <% } else { %>
+        <% articles.forEach(article=> { %>
+        <tr>
+          <th scope="row"><%= article.id %></th>
+          <td><a href="<%=article.url %>" target="_blank" rel="noopener noreferrer"><%= article.title %></a></td>
+          <td><%= article.type %></td>
+          <td><%= article.source %></td>
+          <td><%= article.date %></td>
+          <td><%= article.impacts %></td>
+          <td><%= article.communities %></td>
+          <td><%= article.place %></td>
+        </tr>
+        <% }) %>
+        <% } %>
+      </tbody>
+    </table>
+  </div>
+
+</body>
+
+</html>
