@@ -5,6 +5,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>r00ts Database</title>
+  <link rel="stylesheet" href="<%= root %>/style.css">
+
   <!-- Bootstrap 5 -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-ka7Sk0Gln4gmtz2MlQnikT1wXgYsOg+OMhuP+IlRH9sENBO0LRn5q+8nbTov4+1p" crossorigin="anonymous"></script>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -47,41 +49,27 @@
           <th scope="col">impacts</th>
           <th scope="col">communities</th>
           <th scope="col">place</th>
-          <th scope="col">edit</th>
+          <th scope="col">approved</th>
+          <th scope="col" class="text-end">edit</th>
         </tr>
       </thead>
-      <tbody>
-        <% if (articles.length===0) { %>
-        <tr>
-          <td colspan="9" class="text-center">
-            No articles found!
-          </td>
-        </tr>
-        <% } else { %>
-        <% articles.forEach(article=> { %>
-        <tr>
-          <th scope="row"><%= article.id %></th>
-          <td><a href="<%=article.url %>" target="_blank" rel="noopener noreferrer"><%= article.title %></a></td>
-          <td><%= article.type %></td>
-          <td><%= article.source %></td>
-          <td><%= article.date %></td>
-          <td>
-            <% for(const impactId of article.impacts || []) { %>
-            <%= impacts[impactId].name %>,
-            <% } %>
-          </td>
-          <td><%= article.communities %></td>
-          <td><%= article.location %></td>
-          <td class="text-end">
-            <button class="btn btn-light edit-btn" type="button" data-bs-toggle="modal" data-bs-target="#editModal" data-source-id="<%= article.id %>">
-              <i class="bi bi-pencil"></i>
-            </button>
-          </td>
-        </tr>
-        <% }) %>
-        <% } %>
+      <tbody id="result-table">
+
       </tbody>
     </table>
+  </div>
+
+  <!-- Message modal -->
+  <div class="modal fade" id="message-modal" tabindex="-1" aria-labelledby="messageModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">Error:</div>
+        <div class="modal-body mb-3" id="message-body"></div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- Add new article modal -->
@@ -91,8 +79,9 @@
         <div class="modal-header">
           Add article
         </div>
-        <form action="<%= root %>/api/add" method="post">
+        <form id="add-article">
           <div class="modal-body mb-3">
+            <input type="hidden" name="id" value="">
 
             <!-- Title -->
             <div class="input-group mb-3">
@@ -117,7 +106,7 @@
                 <div class="mb-3">
                   <input type="text" placeholder="Name" id="new-source-name">
                   <input type="text" placeholder="Homepage" id="new-source-url">
-                  <button disabled type="submit" class="btn btn-primary" id="new-source-submit">add</button>
+                  <button disabled class="btn btn-primary" id="new-source-submit">add</button>
                 </div>
               </div>
             </div>
@@ -134,7 +123,8 @@
               <select class="form-select" name="type" id="article-type">
                 <option value="article" selected>Article</option>
                 <option value="resource">Resource</option>
-                <option value="mem">Meme</option>
+                <option value="press-release">Press release</option>
+                <option value="meme">Meme</option>
               </select>
             </div>
 
@@ -180,16 +170,20 @@
               <select name="region" disabled class="form-select" aria-label="Region select menu">
                 <option value="">Region</option>
               </select>
-              <select name="city" disabled class="form-select" aria-label="City select menu">
+              <!-- <select name="city" disabled class="form-select" aria-label="City select menu">
                 <option value="">City</option>
-              </select>
+              </select> -->
             </div>
 
+            <!-- Approved -->
+            <input class="form-check-input" type="checkbox" id="approved" name="approved">
+            <label class="form-check-label" for="approved">Approved</label>
           </div>
 
           <div class="modal-footer">
+            <button type="button" id="delete-article" class="btn btn-danger invisible">Delete</button>
             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-            <button type="submit" class="btn btn-primary">Add</button>
+            <button type="button" id="send-article" class="btn btn-primary">Add</button>
           </div>
         </form>
       </div>
@@ -197,262 +191,11 @@
   </div>
 
   <script>
-    function fillOptionList(selectElem, url, clear = true, value = 'id', key = 'name', option_type = 'option') {
-      if (clear)
-        selectElem.innerHTML = '';
-
-      return fetch(url)
-        .then(res => {
-          return res.json()
-        })
-        .then(data => {
-          for (const item of data) {
-            const option = document.createElement(option_type);
-            option.innerText = item[key];
-            option.value = item[value];
-            selectElem.appendChild(option);
-          }
-        }).catch(error => {
-          console.log(`Error fetching ${url}:`);
-          console.log(error);
-        })
-    }
-
-
-    window.addEventListener('DOMContentLoaded', function() {
-      const dateElem = document.querySelector('input[name="date"]');
-      const datepicker = new Datepicker(dateElem, {
-        autohide: true,
-        buttonClass: 'btn',
-        clearButton: true,
-        format: 'dd/mm/yyyy'
-      });
-
-      // Source List
-      const sourceListSelect = document.querySelector("#article-source");
-      fillOptionList(sourceListSelect, '<%= root %>/api/sources', clear = false);
-
-      const addSourceName = document.querySelector("#new-source-name");
-      const addSourceURL = document.querySelector("#new-source-url");
-      const addSourceSubmit = document.querySelector("#new-source-submit");
-
-      addSourceName.addEventListener('input', (event) => {
-        if (addSourceName.value && addSourceURL.value)
-          addSourceSubmit.removeAttribute('disabled');
-        else
-          addSourceSubmit.setAttribute('disabled', true);
-      });
-
-      addSourceURL.addEventListener('input', (event) => {
-        if (addSourceName.value && addSourceURL.value)
-          addSourceSubmit.removeAttribute('disabled');
-        else
-          addSourceSubmit.setAttribute('disabled', true);
-      });
-
-      addSourceSubmit.addEventListener("click", async (event) => {
-        event.preventDefault();
-        const data = {
-          newSource: addSourceName.value,
-          newSourceURL: addSourceURL.value,
-        }
-        try {
-          const response = await fetch("<%= root %>/api/source", {
-            method: "POST",
-            headers: {
-              'Accept': 'application/json',
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(data),
-          });
-          console.log("submitting source");
-          console.log(response.status);
-
-          if (response.ok) {
-            // update sources list and select option
-            const newEntry = await response.json();
-
-            const option = document.createElement('option');
-            option.value = newEntry.id;
-            option.innerText = newEntry.name;
-            option.selected = true;
-            sourceListSelect.appendChild(option);
-          }
-        } catch (e) {
-          console.error(e);
-        }
-      });
-
-      // Multiselects
-      function initMultiselect(multiselect) {
-        const options = multiselect.querySelectorAll("option");
-        for (const option of options) {
-          option.onmousedown = ev => {
-            ev.preventDefault();
-            multiselect.focus();
-            option.selected = !option.selected;
-            multiselect.dispatchEvent(new Event('change'));
-            return false;
-          };
-        }
-
-        multiselect.addEventListener('change', ev => {
-          let selected = [];
-          for (const option of options) {
-            if (option.selected)
-              selected.push(option.innerText);
-          }
-
-          let label = 'None';
-          if (selected.length) {
-            label = selected.join(', ');
-          }
-
-          multiselect.previousSibling.previousSibling.innerText = label;
-        });
-      }
-
-      // Impacts
-      const impactSelect = document.querySelector("#impact-select");
-      const newImpactName = document.querySelector("#new-impact-name");
-      const newImpactSubmit = document.querySelector("#new-impact-submit");
-
-      fillOptionList(impactSelect, '<%= root %>/api/impacts').then(() => {
-        initMultiselect(impactSelect);
-      });
-
-      newImpactSubmit.addEventListener('click', (ev) => {
-        ev.preventDefault();
-
-        if (!newImpactName.value)
-          return;
-
-        fetch("<%= root %>/api/impacts", {
-          method: "POST",
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            name: newImpactName.value
-          }),
-        }).then(res => {
-          return res.json();
-        }).then(data => {
-          newImpactName.value = '';
-
-          const option = document.createElement('option');
-          option.value = data.id;
-          option.innerText = data.name;
-          option.selected = true;
-          impactSelect.appendChild(option);
-
-          initMultiselect(impactSelect);
-          impactSelect.dispatchEvent(new Event('change'));
-        }).catch(err => {
-          console.error(err);
-        });
-      });
-
-      // Communities
-      const communitySelect = document.querySelector("#communities-select");
-      const newCommunityName = document.querySelector("#new-community-name");
-      const newCommunitySubmit = document.querySelector("#new-community-submit");
-
-      fillOptionList(communitySelect, '<%= root %>/api/communities').then(() => {
-        initMultiselect(communitySelect);
-      });
-
-      newCommunitySubmit.addEventListener('click', (ev) => {
-        ev.preventDefault();
-
-        if (!newCommunityName.value)
-          return;
-
-        fetch("<%= root %>/api/communities", {
-          method: "POST",
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            name: newCommunityName.value
-          }),
-        }).then(res => {
-          return res.json();
-        }).then(data => {
-          newCommunityName.value = '';
-
-          const option = document.createElement('option');
-          option.value = data.id;
-          option.innerText = data.name;
-          option.selected = true;
-          communitySelect.appendChild(option);
-
-          initMultiselect(communitySelect);
-          communitySelect.dispatchEvent(new Event('change'));
-        }).catch(err => {
-          console.error(err);
-        });
-      });
-
-      // Places
-      const continentListSelect = document.querySelector('select[name="continent"]');
-      const countryListSelect = document.querySelector('select[name="country"]');
-      const regionListSelect = document.querySelector('select[name="region"]');
-      const cityListSelect = document.querySelector('select[name="city"]');
-
-      fillOptionList(continentListSelect, '<%= root %>/api/places/continents', clear = false);
-
-      continentListSelect.addEventListener('change', ev => {
-        regionListSelect.setAttribute('disabled', true);
-        regionListSelect.innerHTML = '<option value="">Region</option>';
-        cityListSelect.setAttribute('disabled', true);
-        cityListSelect.innerHTML = '<option value="">City</option>';
-
-        if (continentListSelect.selectedOptions[0].value == -1) {
-          countryListSelect.setAttribute('disabled', true);
-          countryListSelect.innerHTML = '<option value="">Country</option>';
-        } else {
-          countryListSelect.innerHTML = '<option value="" selected>All</option>';
-          countryListSelect.removeAttribute('disabled');
-          const selectedContinent = continentListSelect.selectedOptions[0].innerText;
-
-          fillOptionList(countryListSelect, `<%= root %>/api/places?divisionType=continent&divisionName=${selectedContinent}`, clear = false);
-        }
-      });
-
-      countryListSelect.addEventListener('change', ev => {
-        cityListSelect.setAttribute('disabled', true);
-        cityListSelect.innerHTML = '<option value="">City</option>';
-
-        if (countryListSelect.selectedOptions[0].value == -1) {
-          regionListSelect.setAttribute('disabled', true);
-          regionListSelect.innerHTML = '<option value="">Region</option>';
-        } else {
-          regionListSelect.innerHTML = '<option value="" selected>All</option>';
-          regionListSelect.removeAttribute('disabled');
-          const selectedCountry = countryListSelect.selectedOptions[0].innerText;
-
-          fillOptionList(regionListSelect, `<%= root %>/api/places?divisionType=country&divisionName=${selectedCountry}`, clear = false);
-        }
-      });
-
-      regionListSelect.addEventListener('change', ev => {
-        if (regionListSelect.selectedOptions[0].value == -1) {
-          cityListSelect.setAttribute('disabled', true);
-          cityListSelect.innerHTML = '<option value="">City</option>';
-        } else {
-          cityListSelect.innerHTML = '<option value="" selected>All</option>';
-          cityListSelect.removeAttribute('disabled');
-          const selectedRegion = regionListSelect.selectedOptions[0].innerText;
-
-          fillOptionList(cityListSelect, `<%= root %>/api/places?divisionType=region&divisionName=${selectedRegion}`, clear = false);
-        }
-      });
-
-    });
+    const ROOT = '<%= root %>';
   </script>
+
+  <script src="<%= root %>/dashboard.js"></script>
+
 </body>
 
 </html>

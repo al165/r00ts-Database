@@ -9,6 +9,9 @@ const __dirname = path.dirname(__filename);
 import sqlite3 from 'sqlite3';
 import { open } from 'sqlite';
 
+import multer from 'multer';
+const upload = multer();
+
 import { config } from 'dotenv';
 
 const CONFIG_FILE = process.argv[2] || '.env';
@@ -66,7 +69,7 @@ function isAuthenticated(req, res, next) {
 }
 
 // Routes
-app.get('/login', (req, res) => {
+app.get('/login', (_req, res) => {
     res.render('login', { root: ROOT });
 });
 
@@ -85,7 +88,7 @@ app.get('/logout', (req, res) => {
     res.redirect(path.join(ROOT, '/'));
 });
 
-app.get('/dashboard', isAuthenticated, async (req, res) => {
+app.get('/dashboard', isAuthenticated, async (_req, res) => {
     const db = await dbPromise;
     const articles = await db.all('SELECT * FROM Articles');
     const sources = await db.all('SELECT * FROM Sources');
@@ -95,9 +98,9 @@ app.get('/dashboard', isAuthenticated, async (req, res) => {
     res.render('dashboard', { root: ROOT, articles, sources, impacts, communities, user_version });
 });
 
-app.get('/', async (req, res) => {
+app.get('/', async (_req, res) => {
     const db = await dbPromise;
-    const articles = await db.all('SELECT * FROM Articles');
+    const articles = await db.all('SELECT * FROM Articles WHERE approved = 1');
     const sources = await db.all('SELECT * FROM Sources');
     const impacts = await db.all('SELECT * FROM Impacts');
     const communities = await db.all('SELECT * FROM Communities');
@@ -111,40 +114,106 @@ app.get('/api/search', async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = Math.min(parseInt(req.query.limit) || 20, 100);
     const offset = (page - 1) * limit;
+
+    const relations = [
+        {
+            name: "impacts",
+            table: "ArticlesImpacts",
+            joinTable: "Impacts",
+            joinKey: "impactId"
+        },
+        {
+            name: "communities",
+            table: "ArticlesCommunities",
+            joinTable: "Communities",
+            joinKey: "communityId"
+        }
+    ];
+
+    const relationSql = relations.map(r => `
+        (
+        SELECT COALESCE(
+            json_group_array(
+            json_object('id', j.id, 'name', j.name)
+            ),
+            json('[]')
+        )
+        FROM ${r.table} x
+        JOIN ${r.joinTable} j ON j.id = x.${r.joinKey}
+        WHERE x.articleId = a.id
+        ) AS ${r.name}
+    `).join(",\n");
+
+    const sql = `
+        SELECT
+        a.id,
+        a.title,
+        a.url,
+        a.type,
+        a.source,
+        a.date,
+        a.location,
+        a.continent,
+        a.country,
+        a.region,
+        a.city,
+        a.addedBy,
+        a.addDate,
+        a.approved,
+        ${relationSql}
+        FROM Articles a
+        LIMIT ?
+        OFFSET ?;
+    `;
+    const db = await dbPromise;
+    const rows = await db.all(
+        sql,
+        [limit, offset]
+    );
+
+    const articles = rows.map(row => ({
+        ...row,
+        impacts: JSON.parse(row.impacts),
+        communities: JSON.parse(row.communities),
+    }));
+
+    return res.json({ articles, page, limit });
 });
 
-app.get('/api/sources', async (req, res) => {
+app.get('/api/sources', async (_req, res) => {
     const db = await dbPromise;
     const sources = await db.all("SELECT * FROM Sources");
 
     return res.json(sources);
 });
 
-app.get('/api/impacts', async (req, res) => {
+app.get('/api/impacts', async (_req, res) => {
     const db = await dbPromise;
     const impacts = await db.all("SELECT * FROM Impacts");
 
     return res.json(impacts);
 });
 
-app.get('/api/communities', async (req, res) => {
+app.get('/api/communities', async (_req, res) => {
     const db = await dbPromise;
     const communities = await db.all("SELECT * FROM Communities");
 
     return res.json(communities);
 });
 
-app.post('/api/add', isAuthenticated, async (req, res) => {
-    console.log("POST /api/add");
+app.post('/api/article', isAuthenticated, upload.none(), async (req, res) => {
+    console.log("POST /api/article");
 
     console.log(req.body);
 
-    let { title, url, date, source, type, impacts, communities, continent, country, region, city } = req.body;
+    let { title, url, date, source, type, impacts, communities, continent, country, region, city, approved } = req.body;
 
+    if (source) source = parseInt(source);
     if (continent) continent = parseInt(continent);
     if (country) country = parseInt(country);
     if (region) region = parseInt(region);
     if (city) city = parseInt(city);
+    approved = approved ? 1 : 0;
 
     if (!title || !url)
         return res.sendStatus(400);
@@ -165,28 +234,24 @@ app.post('/api/add', isAuthenticated, async (req, res) => {
     let location = "";
     if (continent != undefined && continent >= 0) {
         const row = await db.get("SELECT * FROM Places WHERE id = ?", [continent]);
-        console.log(row);
         if (row && row.name)
             location += row.name;
     }
 
     if (country != undefined && country >= 0) {
         const row = await db.get("SELECT * FROM Places WHERE id = ?", [country]);
-        console.log(row);
         if (row && row.name)
             location += '/' + row.name;
     }
 
     if (region != undefined && region >= 0) {
         const row = await db.get("SELECT * FROM Places WHERE id = ?", [region]);
-        console.log(row);
         if (row && row.name)
             location += '/' + row.name;
     }
 
     if (city != undefined && city >= 0) {
         const row = await db.get("SELECT * FROM Places WHERE id = ?", [city]);
-        console.log(row);
         if (row && row.name)
             location += '/' + row.name;
     }
@@ -194,15 +259,13 @@ app.post('/api/add', isAuthenticated, async (req, res) => {
 
     let articleId;
     await db.run(
-        "INSERT INTO Articles(title, url, type, source, date, continent, country, region, city, location, addedBy, addDate) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        [title, url, type, source, date, continent, country, region, city, location, addedBy, addDate],
+        "INSERT INTO Articles(title, url, type, source, date, continent, country, region, city, location, approved, addedBy, addDate) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        [title, url, type, source, date, continent, country, region, city, location, approved, addedBy, addDate],
         (error) => {
             next(error);
         }).then(result => {
             articleId = result.lastID;
         });
-
-    console.log(`Inserted ArticleID: ${articleId}`);
 
     // Update XRef tables
 
@@ -226,9 +289,160 @@ app.post('/api/add', isAuthenticated, async (req, res) => {
 
     updateVersion(db);
 
-    console.log("DONE");
+    const newRow = await db.get("SELECT * FROM Articles WHERE id = ?", [articleId]);
 
-    return res.sendStatus(201);
+    // await new Promise((res, rej) => {
+    //     setTimeout(() => res(), 3000);
+    // });
+
+    return res.status(201).json(newRow);
+});
+
+app.delete('/api/article', isAuthenticated, async (req, res, next) => {
+    console.log("DELETE /api/article");
+
+    const { id } = req.query;
+    console.log(id);
+
+    const db = await dbPromise;
+    await db.run("DELETE FROM Articles WHERE id = ?", [id], (error) => next(error));
+
+    // Update XRefs
+    await db.run("DELETE FROM ArticlesImpacts WHERE articleId = ?", [id], (error) => next(error))
+    await db.run("DELETE FROM ArticlesCommunities WHERE articleId = ?", [id], (error) => next(error))
+
+    updateVersion(db);
+
+    return res.sendStatus(204);
+});
+
+app.put('/api/article', isAuthenticated, upload.none(), async (req, res, next) => {
+    console.log("PUT /api/article");
+
+    console.log(req.body);
+
+    let { id, title, url, date, source, type, impacts, communities, continent, country, region, city, approved } = req.body;
+
+    if (id == undefined)
+        return res.sendStatus(400);
+
+    if (source) source = parseInt(source);
+    if (continent) continent = parseInt(continent);
+    if (country) country = parseInt(country);
+    if (region) region = parseInt(region);
+    if (city) city = parseInt(city);
+    approved = approved ? 1 : 0;
+
+    let sqlSet = [];
+    let args = [];
+
+    sqlSet.push('title = ?');
+    args.push(title);
+
+    sqlSet.push('url = ?');
+    args.push(url);
+
+    if (date) {
+        sqlSet.push('date = ?');
+        args.push(date);
+    }
+
+    sqlSet.push('source = ?');
+    args.push(source);
+
+    if (type) {
+        sqlSet.push('type = ?');
+        args.push(type);
+    }
+
+    const db = await dbPromise;
+
+    let location = "";
+    if (continent != undefined && continent >= 0) {
+        const row = await db.get("SELECT * FROM Places WHERE id = ?", [continent]);
+        if (row && row.name)
+            location += row.name;
+        sqlSet.push('continent = ?');
+        args.push(continent);
+    } else {
+        sqlSet.push('continent = ?');
+        args.push(undefined);
+    }
+
+    if (country != undefined && country >= 0) {
+        const row = await db.get("SELECT * FROM Places WHERE id = ?", [country]);
+        if (row && row.name)
+            location += '/' + row.name;
+        sqlSet.push('country = ?');
+        args.push(country);
+    } else {
+        sqlSet.push('country = ?');
+        args.push(undefined);
+    }
+
+    if (region != undefined && region >= 0) {
+        const row = await db.get("SELECT * FROM Places WHERE id = ?", [region]);
+        if (row && row.name)
+            location += '/' + row.name;
+        sqlSet.push('region = ?');
+        args.push(region);
+    } else {
+        sqlSet.push('region = ?');
+        args.push(undefined);
+    }
+
+    if (city != undefined && city >= 0) {
+        const row = await db.get("SELECT * FROM Places WHERE id = ?", [city]);
+        if (row && row.name)
+            location += '/' + row.name;
+        sqlSet.push('city = ?');
+        args.push(city);
+    } else {
+        sqlSet.push('city = ?');
+        args.push(undefined);
+    }
+
+    sqlSet.push('location = ?');
+    args.push(location);
+
+    sqlSet.push('approved = ?');
+    args.push(approved);
+
+    const sql = `UPDATE Articles SET ${sqlSet.join(', ')} WHERE id = ?`;
+    args.push(id);
+
+    await db.run(sql, args, (error) => { next(error) });
+
+    // Update XRefs
+    if (impacts) {
+        await db.run("DELETE FROM ArticlesImpacts WHERE articleId = ?", [id]);
+        await db.run("BEGIN TRANSACTION");
+        for (const impactId of impacts) {
+            console.log(" Impact id: " + impactId);
+            await db.run("INSERT INTO ArticlesImpacts(articleId, impactId) VALUES (?, ?)", [id, impactId]);
+        }
+        await db.run("COMMIT");
+    }
+
+    if (communities) {
+        await db.run("DELETE FROM ArticlesCommunities WHERE articleId = ?", [id]);
+        await db.run("BEGIN TRANSACTION");
+        for (const communityId of communities) {
+            console.log(" Community id: " + communityId);
+            await db.run("INSERT INTO ArticlesCommunities(articleId, communityId) VALUES (?, ?)", [id, communityId]);
+        }
+        await db.run("COMMIT");
+    }
+
+    updateVersion(db);
+
+    const newRow = await db.get("SELECT * FROM Articles WHERE id = ?", [id]);
+
+    // await new Promise((res, rej) => {
+    //     setTimeout(() => res(), 3000);
+    // });
+
+    return res.status(200).json(newRow);
 });
 
 app.post('/api/source', isAuthenticated, async (req, res, next) => {
@@ -252,14 +466,19 @@ app.post('/api/source', isAuthenticated, async (req, res, next) => {
         }
 
     const db = await dbPromise;
+    let newSourceId;
     await db.run("INSERT INTO Sources(name, url) VALUES (?, ?)", [newSource, newSourceURL], (error) => {
         next(error);
+    }).then(result => {
+        newSourceId = result.lastID;
     });
+
+    console.log(`Add source, newSourceId = ${newSourceId}`);
 
     const newSourceData = {
         name: newSource,
         url: newSourceURL,
-        id: db.lastInsertRowId
+        id: newSourceId
     };
 
     await updateVersion(db);
@@ -308,13 +527,16 @@ app.post('/api/communities', isAuthenticated, async (req, res) => {
         }
 
     const db = await dbPromise;
+    let newCommunityId;
     await db.run("INSERT INTO Communities(name) VALUES (?)", [newCommunity], (error) => {
         next(error);
+    }).then(result => {
+        newCommunityId = result.lastID;
     });
 
     const newCommunityData = {
         name: newCommunity,
-        id: db.lastInsertRowId
+        id: newCommunityId
     };
 
     await updateVersion(db);
@@ -322,7 +544,7 @@ app.post('/api/communities', isAuthenticated, async (req, res) => {
     return res.status(201).json(newCommunityData);
 });
 
-app.get('/api/places/continents', async (req, res) => {
+app.get('/api/places/continents', async (_req, res) => {
     const db = await dbPromise;
     const continents = await db.all("SELECT * FROM Places WHERE type = 'continent'");
 
@@ -332,20 +554,30 @@ app.get('/api/places/continents', async (req, res) => {
 app.get('/api/places', async (req, res) => {
     console.log('GET /api/places');
 
-    const { divisionType, divisionName } = req.query;
-    if (!divisionType || !divisionName)
+    const { divisionType, divisionName, placeId } = req.query;
+
+    if (!(divisionType && divisionName) && !placeId) {
+        console.error("Bad request");
         return res.sendStatus(400);
+    }
 
     const db = await dbPromise;
 
-    const divisionId = await db.get("SELECT id FROM Places WHERE type = ? AND name = ?", [divisionType, divisionName]);
-    if (divisionId === undefined || divisionId.id === undefined)
-        return res.sendStatus(404);
+    if (placeId != undefined && placeId != "") {
+        const placeRow = await db.get("SELECT * FROM Places WHERE id = ?", [placeId]);
+        return res.json(placeRow);
+    } else {
+        console.log(divisionType, divisionName);
+        const divisionId = await db.get("SELECT id FROM Places WHERE type = ? AND name = ?", [divisionType, divisionName]);
+        console.log(divisionId);
+        if (divisionId === undefined || divisionId.id === undefined) {
+            console.error("DivisionId not found");
+            return res.sendStatus(404);
+        }
 
-    const places = await db.all("SELECT * FROM Places WHERE parent_id = ? ORDER BY name ASC", [divisionId.id]);
-    console.log(places);
-
-    return res.json(places);
+        const places = await db.all("SELECT * FROM Places WHERE parent_id = ? ORDER BY name ASC", [divisionId.id]);
+        return res.json(places);
+    }
 });
 
 app.post('/api/places', async (req, res, next) => {
