@@ -89,8 +89,6 @@ function setSelectOption(selectEl, values, multiselect = false, dispatch = true)
 }
 
 async function getPlaceList(divisionType, divisionName, placeId = "") {
-    // console.log(`getPlaceList ${divisionType} ${divisionName} ${placeId}`);
-
     if (!divisionName || divisionName === "All")
         return [];
     return fetch(`${ROOT || ''}/api/places?divisionType=${divisionType}&divisionName=${divisionName}&placeId=${placeId}`)
@@ -104,8 +102,6 @@ async function setPlaceSelect(continentId, countryId, regionId, cityId) {
     const continentSelect = articleForm.querySelector("[name=continent]");
     const countryListSelect = articleForm.querySelector("[name=country]");
     const regionListSelect = articleForm.querySelector("[name=region]");
-
-    // console.log(`setPlaceSelect ids: ${continentId}, ${countryId}, ${regionId}`);
 
     if (continentId != undefined && continentId != null && continentId != "") {
         const continentName = setSelectOption(continentSelect, continentId, false, false)[0];
@@ -216,7 +212,6 @@ function editArticle(articleId) {
             method: 'DELETE',
         }).then(res => {
             closeModal();
-            console.log(res);
             deleteRow(articleData.id);
         }).catch(error => {
             closeModal();
@@ -261,7 +256,7 @@ async function sendNewArticle(ev) {
             resetButton();
             closeModal();
 
-            console.log(err);
+            console.error(err);
 
             const errorModal = new bootstrap.Modal('#message-modal');
             const errorBody = document.querySelector("#message-body");
@@ -307,7 +302,7 @@ async function updateArticle(ev) {
             resetButton();
             closeModal();
 
-            console.log(err);
+            console.error(err);
 
             const errorModal = new bootstrap.Modal('#message-modal');
             const errorBody = document.querySelector("#message-body");
@@ -349,6 +344,16 @@ function updateRow(item) {
     }
 }
 
+function search() {
+    const searchParams = {};
+
+    if (document.querySelector("#approved-only").checked)
+        searchParams.approved = 1;
+    else if (document.querySelector("#approved-none").checked)
+        searchParams.approved = 0;
+
+    fetchItems(1, searchParams);
+}
 
 window.addEventListener('DOMContentLoaded', function () {
     const dateElem = document.querySelector('input[name="date"]');
@@ -563,7 +568,7 @@ window.addEventListener('DOMContentLoaded', function () {
 
 
     Promise.all([sourcesPromise, communitiesPromise, impactsPromise, continentsPromise]).then(() => {
-        fetchItems();
+        search();
 
         fillOptionList(sourceListSelect, sources, clear = false);
 
@@ -572,5 +577,10 @@ window.addEventListener('DOMContentLoaded', function () {
 
         fillOptionList(communitySelect, communities);
         initMultiselect(communitySelect);
+    });
+
+    document.querySelector("#search-btn").addEventListener('click', ev => {
+        ev.preventDefault();
+        search();
     });
 });

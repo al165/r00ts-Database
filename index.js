@@ -107,6 +107,10 @@ app.get('/api/search', async (req, res) => {
     const limit = Math.min(parseInt(req.query.limit) || 20, 100);
     const offset = (page - 1) * limit;
 
+    let { approved } = req.query;
+
+    if (approved) approved = parseInt(approved);
+
     const relations = [
         {
             name: "impacts",
@@ -137,8 +141,12 @@ app.get('/api/search', async (req, res) => {
     `).join(",\n");
 
     let whereClauses = [];
-    if (!checkAuthenticated(req)) {
+    if (!checkAuthenticated(req) || approved == 1) {
         whereClauses.push('approved = 1');
+    }
+
+    if (approved == 0) {
+        whereClauses.push('approved = 0');
     }
 
     let whereClause = '';
@@ -275,7 +283,6 @@ app.post('/api/article', isAuthenticated, upload.none(), async (req, res) => {
     if (impacts) {
         await db.run("BEGIN TRANSACTION");
         for (const impactId of impacts) {
-            console.log(" Impact id: " + impactId);
             await db.run("INSERT INTO ArticlesImpacts(articleId, impactId) VALUES (?, ?)", [articleId, impactId]);
         }
         await db.run("COMMIT");
@@ -284,7 +291,6 @@ app.post('/api/article', isAuthenticated, upload.none(), async (req, res) => {
     if (communities) {
         await db.run("BEGIN TRANSACTION");
         for (const communityId of communities) {
-            console.log(" Community id: " + communityId);
             await db.run("INSERT INTO ArticlesCommunities(articleId, communityId) VALUES (?, ?)", [articleId, communityId]);
         }
         await db.run("COMMIT");
@@ -421,7 +427,6 @@ app.put('/api/article', isAuthenticated, upload.none(), async (req, res, next) =
         await db.run("DELETE FROM ArticlesImpacts WHERE articleId = ?", [id]);
         await db.run("BEGIN TRANSACTION");
         for (const impactId of impacts) {
-            console.log(" Impact id: " + impactId);
             await db.run("INSERT INTO ArticlesImpacts(articleId, impactId) VALUES (?, ?)", [id, impactId]);
         }
         await db.run("COMMIT");
@@ -431,7 +436,6 @@ app.put('/api/article', isAuthenticated, upload.none(), async (req, res, next) =
         await db.run("DELETE FROM ArticlesCommunities WHERE articleId = ?", [id]);
         await db.run("BEGIN TRANSACTION");
         for (const communityId of communities) {
-            console.log(" Community id: " + communityId);
             await db.run("INSERT INTO ArticlesCommunities(articleId, communityId) VALUES (?, ?)", [id, communityId]);
         }
         await db.run("COMMIT");
@@ -570,9 +574,7 @@ app.get('/api/places', async (req, res) => {
         const placeRow = await db.get("SELECT * FROM Places WHERE id = ?", [placeId]);
         return res.json(placeRow);
     } else {
-        console.log(divisionType, divisionName);
         const divisionId = await db.get("SELECT id FROM Places WHERE type = ? AND name = ?", [divisionType, divisionName]);
-        console.log(divisionId);
         if (divisionId === undefined || divisionId.id === undefined) {
             console.error("DivisionId not found");
             return res.sendStatus(404);
@@ -600,8 +602,6 @@ app.post('/api/places', async (req, res, next) => {
     const divisionId = await db.get("SELECT id FROM Places WHERE type = ? AND name = ?", [divisionType, divisionName]);
     if (divisionId === undefined)
         return res.sendStatus(404);
-
-    console.log(divisionId);
 
     console.log(`Inserting ${placeName} (type ${placeType}) into ${divisionType} (${divisionId.id}) ${divisionName}`);
 

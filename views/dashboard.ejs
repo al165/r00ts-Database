@@ -32,7 +32,35 @@
   <div class="card m-4 p-3">
     <div>
       <button id="add-article-btn" class="btn btn-primary me-2" type="button" data-bs-toggle="modal" data-bs-target="#add-modal">Add article</button>
+      <button class="btn btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#collapseExample" aria-expanded="false" aria-controls="collapseExample">
+        Search Filter...
+      </button>
+      <div class="collapse" id="collapseExample">
+        <div class="card card-body m-4">
+          <form id="search-form">
+            <div class="card-body">
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="filter-approved" id="approved-all" checked>
+                <label class="form-check-label" for="approved-all">All</label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="filter-approved" id="approved-only">
+                <label class="form-check-label" for="approved-only">Approved only</label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="filter-approved" id="approved-none">
+                <label class="form-check-label" for="approved-none">Un-approved only</label>
+              </div>
+
+              <div>
+                <button id="search-btn" class="btn btn-primary me-2" type="button">Update search</button>
+              </div>
+            </div>
+        </div>
+        </form>
+      </div>
     </div>
+  </div>
   </div>
 
   <!-- List of Articles -->

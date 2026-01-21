@@ -101,20 +101,26 @@ function renderResults(items) {
         return;
     }
 
+    resultsContainer.innerHTML = '';
     items.forEach(item => {
         addRow(item, undefined, fields);
     });
 }
 
 // Fetch article list
-async function fetchItems(page = 1) {
+async function fetchItems(page = 1, searchParams = {}) {
     const params = new URLSearchParams();
     params.append('page', page);
     params.append('limit', 100);
 
+    for (const key of Object.keys(searchParams)) {
+        params.append(key, searchParams[key]);
+    }
+
     fetch(`${ROOT || ''}/api/search?${params.toString()}`)
         .then(res => res.json())
         .then(data => {
+            articles = {};
             data.articles.forEach(item => {
                 articles[item.id] = item;
             });
