@@ -38,6 +38,11 @@ CREATE TABLE Communities(
     name TEXT UNIQUE NOT NULL
 );
 
+CREATE TABLE Companies(
+    id INTEGER PRIMARY KEY,
+    name TEXT UNIQUE NOT NULL
+);
+
 CREATE TABLE Places (
     id INTEGER PRIMARY KEY,
     name TEXT NOT NULL,
@@ -64,6 +69,13 @@ CREATE TABLE ArticlesCommunities(
     PRIMARY KEY (articleId, communityId)
 );
 
+CREATE TABLE ArticlesCompanies(
+    articleId INTEGER,
+    companyId INTEGER,
+    FOREIGN KEY (articleId) REFERENCES Articles(id),
+    FOREIGN KEY (companyId) REFERENCES Companies(id),
+    PRIMARY KEY (articleId, companyId)
+);
 -- Down
 
 DROP TABLE Articles;
@@ -73,4 +85,5 @@ DROP TABLE Communities;
 DROP TABLE Place;
 DROP TABLE ArticlesImpacts;
 DROP TABLE ArticlesCommunities;
+DROP TABLE ArticlesCompanies;
 

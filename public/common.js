@@ -6,6 +6,14 @@ let sourcesPromise = fetch(`${ROOT || ''}/api/sources`).then(res => {
         sources[data[item].id] = data[item];
 });
 
+let companies = {};
+let companiesPromise = fetch(`${ROOT || ""}/api/companies`).then(res => {
+    return res.json()
+}).then(data => {
+    for (const item of Object.keys(data))
+        companies[data[item].id] = data[item];
+});
+
 let impacts = {};
 let impactsPromise = fetch(`${ROOT || ""}/api/impacts`).then(res => {
     return res.json()
@@ -44,6 +52,12 @@ window.fieldRender = {
     date: (item) => {
         return `<td>${item.date}</td>`;
     },
+    companies: (item) => {
+        if (item.companies)
+            return '<td>' + item.companies.map(c => c.name).join(', ') + '</td>';
+        else
+            return '<td></td>';
+    },
     communities: (item) => {
         if (item.communities)
             return '<td>' + item.communities.map(c => c.name).join(', ') + '</td>';
@@ -73,6 +87,7 @@ function addRow(item, tr = undefined, fields = []) {
 
     for (const field of fields) {
         if (!window.fieldRender[field]) {
+            console.log('Field not found in fieldRender');
             tds.push('<td></td>');
             continue;
         }

@@ -102,6 +102,42 @@ app.get('/', async (_req, res) => {
 
 
 // API Endpoints
+
+const relations = [
+    {
+        name: "companies",
+        table: "ArticlesCompanies",
+        joinTable: "Companies",
+        joinKey: "companyId"
+    },
+    {
+        name: "impacts",
+        table: "ArticlesImpacts",
+        joinTable: "Impacts",
+        joinKey: "impactId"
+    },
+    {
+        name: "communities",
+        table: "ArticlesCommunities",
+        joinTable: "Communities",
+        joinKey: "communityId"
+    }
+];
+
+const relationSql = relations.map(r => `
+    (
+    SELECT COALESCE(
+        json_group_array(
+        json_object('id', j.id, 'name', j.name)
+        ),
+        json('[]')
+    )
+    FROM ${r.table} x
+    JOIN ${r.joinTable} j ON j.id = x.${r.joinKey}
+    WHERE x.articleId = a.id
+    ) AS ${r.name}
+`).join(",\n");
+
 app.get('/api/search', async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = Math.min(parseInt(req.query.limit) || 20, 100);
@@ -110,35 +146,6 @@ app.get('/api/search', async (req, res) => {
     let { approved } = req.query;
 
     if (approved) approved = parseInt(approved);
-
-    const relations = [
-        {
-            name: "impacts",
-            table: "ArticlesImpacts",
-            joinTable: "Impacts",
-            joinKey: "impactId"
-        },
-        {
-            name: "communities",
-            table: "ArticlesCommunities",
-            joinTable: "Communities",
-            joinKey: "communityId"
-        }
-    ];
-
-    const relationSql = relations.map(r => `
-        (
-        SELECT COALESCE(
-            json_group_array(
-            json_object('id', j.id, 'name', j.name)
-            ),
-            json('[]')
-        )
-        FROM ${r.table} x
-        JOIN ${r.joinTable} j ON j.id = x.${r.joinKey}
-        WHERE x.articleId = a.id
-        ) AS ${r.name}
-    `).join(",\n");
 
     let whereClauses = [];
     if (!checkAuthenticated(req) || approved == 1) {
@@ -184,6 +191,7 @@ app.get('/api/search', async (req, res) => {
 
     const articles = rows.map(row => ({
         ...row,
+        companies: JSON.parse(row.companies),
         impacts: JSON.parse(row.impacts),
         communities: JSON.parse(row.communities),
     }));
@@ -212,12 +220,19 @@ app.get('/api/communities', async (_req, res) => {
     return res.json(communities);
 });
 
+app.get('/api/companies', async (_req, res) => {
+    const db = await dbPromise;
+    const companies = await db.all("SELECT * FROM Companies");
+
+    return res.json(companies);
+});
+
 app.post('/api/article', isAuthenticated, upload.none(), async (req, res) => {
     console.log("POST /api/article");
 
     console.log(req.body);
 
-    let { title, url, date, source, type, impacts, communities, continent, country, region, city, approved } = req.body;
+    let { title, url, date, source, type, companies, impacts, communities, continent, country, region, city, approved } = req.body;
 
     if (source) source = parseInt(source);
     if (continent) continent = parseInt(continent);
@@ -280,6 +295,14 @@ app.post('/api/article', isAuthenticated, upload.none(), async (req, res) => {
 
     // Update XRef tables
 
+    if (companies) {
+        await db.run("BEGIN TRANSACTION");
+        for (const companyId of companies) {
+            await db.run("INSERT INTO ArticlesCompanies(articleId, companyId) VALUES (?, ?)", [articleId, companyId]);
+        }
+        await db.run("COMMIT");
+    }
+
     if (impacts) {
         await db.run("BEGIN TRANSACTION");
         for (const impactId of impacts) {
@@ -298,11 +321,33 @@ app.post('/api/article', isAuthenticated, upload.none(), async (req, res) => {
 
     updateVersion(db);
 
-    const newRow = await db.get("SELECT * FROM Articles WHERE id = ?", [articleId]);
-
-    // await new Promise((res, rej) => {
-    //     setTimeout(() => res(), 3000);
-    // });
+    const statement = `
+    SELECT
+        a.id,
+        a.title,
+        a.url,
+        a.type,
+        a.source,
+        a.date,
+        a.location,
+        a.continent,
+        a.country,
+        a.region,
+        a.city,
+        a.addedBy,
+        a.addDate,
+        a.approved,
+        ${relationSql}
+        FROM Articles a
+        WHERE id = ?
+    `;
+    const newRowData = await db.get(statement, [id]);
+    const newRow = {
+        ...newRowData,
+        companies: JSON.parse(newRowData.companies),
+        impacts: JSON.parse(newRowData.impacts),
+        communities: JSON.parse(newRowData.communities),
+    };
 
     return res.status(201).json(newRow);
 });
@@ -317,6 +362,7 @@ app.delete('/api/article', isAuthenticated, async (req, res, next) => {
     await db.run("DELETE FROM Articles WHERE id = ?", [id], (error) => next(error));
 
     // Update XRefs
+    await db.run("DELETE FROM ArticlesCompanies WHERE articleId = ?", [id], (error) => next(error))
     await db.run("DELETE FROM ArticlesImpacts WHERE articleId = ?", [id], (error) => next(error))
     await db.run("DELETE FROM ArticlesCommunities WHERE articleId = ?", [id], (error) => next(error))
 
@@ -330,7 +376,7 @@ app.put('/api/article', isAuthenticated, upload.none(), async (req, res, next) =
 
     console.log(req.body);
 
-    let { id, title, url, date, source, type, impacts, communities, continent, country, region, city, approved } = req.body;
+    let { id, title, url, date, source, type, companies, impacts, communities, continent, country, region, city, approved } = req.body;
 
     if (id == undefined)
         return res.sendStatus(400);
@@ -423,6 +469,17 @@ app.put('/api/article', isAuthenticated, upload.none(), async (req, res, next) =
     await db.run(sql, args, (error) => { next(error) });
 
     // Update XRefs
+    if (companies) {
+        await db.run("DELETE FROM ArticlesCompanies WHERE articleId = ?", [id]);
+        await db.run("BEGIN TRANSACTION");
+        for (const companyId of companies) {
+            await db.run("INSERT INTO ArticlesCompanies(articleId, companyId) VALUES (?, ?)", [id, companyId]);
+        }
+        await db.run("COMMIT");
+    } else {
+        await db.run("DELETE FROM ArticlesCompanies WHERE articleId = ?", [id]);
+    }
+
     if (impacts) {
         await db.run("DELETE FROM ArticlesImpacts WHERE articleId = ?", [id]);
         await db.run("BEGIN TRANSACTION");
@@ -430,6 +487,8 @@ app.put('/api/article', isAuthenticated, upload.none(), async (req, res, next) =
             await db.run("INSERT INTO ArticlesImpacts(articleId, impactId) VALUES (?, ?)", [id, impactId]);
         }
         await db.run("COMMIT");
+    } else {
+        await db.run("DELETE FROM ArticlesImpacts WHERE articleId = ?", [id]);
     }
 
     if (communities) {
@@ -439,15 +498,39 @@ app.put('/api/article', isAuthenticated, upload.none(), async (req, res, next) =
             await db.run("INSERT INTO ArticlesCommunities(articleId, communityId) VALUES (?, ?)", [id, communityId]);
         }
         await db.run("COMMIT");
+    } else {
+        await db.run("DELETE FROM ArticlesCommunities WHERE articleId = ?", [id]);
     }
 
     updateVersion(db);
 
-    const newRow = await db.get("SELECT * FROM Articles WHERE id = ?", [id]);
-
-    // await new Promise((res, rej) => {
-    //     setTimeout(() => res(), 3000);
-    // });
+    const statement = `
+    SELECT
+        a.id,
+        a.title,
+        a.url,
+        a.type,
+        a.source,
+        a.date,
+        a.location,
+        a.continent,
+        a.country,
+        a.region,
+        a.city,
+        a.addedBy,
+        a.addDate,
+        a.approved,
+        ${relationSql}
+        FROM Articles a
+        WHERE id = ?
+    `;
+    const newRowData = await db.get(statement, [id]);
+    const newRow = {
+        ...newRowData,
+        companies: JSON.parse(newRowData.companies),
+        impacts: JSON.parse(newRowData.impacts),
+        communities: JSON.parse(newRowData.communities),
+    };
 
     return res.status(200).json(newRow);
 });
@@ -528,7 +611,7 @@ app.post('/api/communities', isAuthenticated, async (req, res) => {
     const newCommunity = removeWhitespaceExceptSpace(req.body.name);
     if (newCommunity.length == 0)
         try {
-            throw new Error('Invalid impact name');
+            throw new Error('Invalid company name');
         } catch (error) {
             next(error);
         }
@@ -549,6 +632,35 @@ app.post('/api/communities', isAuthenticated, async (req, res) => {
     await updateVersion(db);
 
     return res.status(201).json(newCommunityData);
+});
+
+app.post('/api/companies', isAuthenticated, async (req, res) => {
+    console.log('POST /api/companies');
+
+    const newCompany = removeWhitespaceExceptSpace(req.body.name);
+    if (newCompany.length == 0)
+        try {
+            throw new Error('Invalid company name');
+        } catch (error) {
+            next(error);
+        }
+
+    const db = await dbPromise;
+    let newCompanyId;
+    await db.run("INSERT INTO Companies(name) VALUES (?)", [newCompany], (error) => {
+        next(error);
+    }).then(result => {
+        newCompanyId = result.lastID;
+    });
+
+    const newCompanyData = {
+        name: newCompany,
+        id: newCompanyId
+    };
+
+    await updateVersion(db);
+
+    return res.status(201).json(newCompanyData);
 });
 
 app.get('/api/places/continents', async (_req, res) => {

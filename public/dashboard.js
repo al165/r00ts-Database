@@ -156,6 +156,8 @@ function newArticle() {
     articleForm.querySelector("[name=type]").selectedIndex = 0;
     articleForm.querySelector("[name=source]").selectedIndex = 0;
 
+    const companies = articleForm.querySelector("[name=companies]");
+    setSelectOption(companies, [], true, true);
 
     const impacts = articleForm.querySelector("[name=impacts]");
     setSelectOption(impacts, [], true, true);
@@ -184,6 +186,10 @@ function editArticle(articleId) {
 
     const sources = articleForm.querySelector("[name=source]");
     setSelectOption(sources, articleData.source, false);
+
+    let companyIds = (articleData.companies || []).map(data => data.id);
+    const companies = articleForm.querySelector("[name=companies]");
+    setSelectOption(companies, companyIds, true);
 
     let impactIds = (articleData.impacts || []).map(data => data.id);
     const impacts = articleForm.querySelector("[name=impacts]");
@@ -423,6 +429,44 @@ window.addEventListener('DOMContentLoaded', function () {
         }
     });
 
+    // Companies
+    const companiesSelect = document.querySelector("#companies-select");
+    const newCompanyName = document.querySelector("#new-company-name");
+    const newCompanySubmit = document.querySelector("#new-company-submit");
+
+    newCompanySubmit.addEventListener('click', (ev) => {
+        ev.preventDefault();
+
+        if (!newCompanyName.value)
+            return;
+
+        fetch(`${ROOT || ''}/api/companies`, {
+            method: "POST",
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                name: newCompanyName.value
+            }),
+        }).then(res => {
+            return res.json();
+        }).then(data => {
+            newCompanyName.value = '';
+
+            const option = document.createElement('option');
+            option.value = data.id;
+            option.innerText = data.name;
+            option.selected = true;
+            companiesSelect.appendChild(option);
+
+            initMultiselect(companiesSelect);
+            companiesSelect.dispatchEvent(new Event('change'));
+        }).catch(err => {
+            console.error(err);
+        });
+    });
+
     // Impacts
     const impactSelect = document.querySelector("#impact-select");
     const newImpactName = document.querySelector("#new-impact-name");
@@ -567,10 +611,13 @@ window.addEventListener('DOMContentLoaded', function () {
     // });
 
 
-    Promise.all([sourcesPromise, communitiesPromise, impactsPromise, continentsPromise]).then(() => {
+    Promise.all([sourcesPromise, communitiesPromise, companiesPromise, impactsPromise, continentsPromise]).then(() => {
         search();
 
         fillOptionList(sourceListSelect, sources, clear = false);
+
+        fillOptionList(companiesSelect, companies);
+        initMultiselect(companiesSelect);
 
         fillOptionList(impactSelect, impacts);
         initMultiselect(impactSelect);
