@@ -547,13 +547,16 @@ app.post('/api/source', isAuthenticated, async (req, res, next) => {
             next(error);
         }
 
-    const newSourceURL = req.body.newSourceURL;
+    let newSourceURL = req.body.newSourceURL;
     if (!newSourceURL || newSourceURL.length == 0)
         try {
             throw new Error('Invalid source URL');
         } catch (error) {
             next(error);
         }
+
+    if (!/^https?:\/\//i.test(newSourceURL))
+        newSourceURL = 'http://' + newSourceURL;
 
     const db = await dbPromise;
     let newSourceId;
