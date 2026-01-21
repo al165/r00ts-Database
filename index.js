@@ -63,9 +63,13 @@ const USER = {
 
 // Authentication Middleware
 function isAuthenticated(req, res, next) {
-    if (req.session.user && req.session.user.password === USER.password)
+    if (checkAuthenticated(req))
         return next();
     res.redirect(path.join(ROOT, '/login'));
+}
+
+function checkAuthenticated(req) {
+    return (req.session.user && req.session.user.password === USER.password)
 }
 
 // Routes
@@ -89,23 +93,11 @@ app.get('/logout', (req, res) => {
 });
 
 app.get('/dashboard', isAuthenticated, async (_req, res) => {
-    const db = await dbPromise;
-    const articles = await db.all('SELECT * FROM Articles');
-    const sources = await db.all('SELECT * FROM Sources');
-    const impacts = await db.all('SELECT * FROM Impacts');
-    const communities = await db.all('SELECT * FROM Communities');
-
-    res.render('dashboard', { root: ROOT, articles, sources, impacts, communities, user_version });
+    return res.render('dashboard', { root: ROOT, user_version });
 });
 
 app.get('/', async (_req, res) => {
-    const db = await dbPromise;
-    const articles = await db.all('SELECT * FROM Articles WHERE approved = 1');
-    const sources = await db.all('SELECT * FROM Sources');
-    const impacts = await db.all('SELECT * FROM Impacts');
-    const communities = await db.all('SELECT * FROM Communities');
-
-    return res.render('home', { root: ROOT, articles, sources, impacts, communities, user_version });
+    return res.render('home', { root: ROOT, user_version });
 });
 
 
@@ -144,6 +136,16 @@ app.get('/api/search', async (req, res) => {
         ) AS ${r.name}
     `).join(",\n");
 
+    let whereClauses = [];
+    if (!checkAuthenticated(req)) {
+        whereClauses.push('approved = 1');
+    }
+
+    let whereClause = '';
+    if (whereClauses.length) {
+        whereClause = `WHERE ${whereClauses.join(',\n')}`;
+    }
+
     const sql = `
         SELECT
         a.id,
@@ -162,6 +164,7 @@ app.get('/api/search', async (req, res) => {
         a.approved,
         ${relationSql}
         FROM Articles a
+        ${whereClause}
         LIMIT ?
         OFFSET ?;
     `;

@@ -1,29 +1,3 @@
-let sources = {};
-let sourcesPromise = fetch(`${ROOT || ''}/api/sources`).then(res => {
-    return res.json()
-}).then(data => {
-    for (const item of Object.keys(data))
-        sources[data[item].id] = data[item];
-});
-
-let impacts = {};
-let impactsPromise = fetch(`${ROOT || ""}/api/impacts`).then(res => {
-    return res.json()
-}).then(data => {
-    for (const item of Object.keys(data))
-        impacts[data[item].id] = data[item];
-});
-
-let communities = {};
-let communitiesPromise = fetch(`${ROOT || ''}/api/communities`).then(res => {
-    return res.json()
-}).then(data => {
-    for (const item of Object.keys(data))
-        communities[data[item].id] = data[item];
-});
-
-let articles = {};
-
 let continentList = [];
 let countryList = [];
 let regionList = [];
@@ -352,46 +326,7 @@ async function updateArticle(ev) {
     }
 }
 
-function addRow(item, tr = undefined) {
-    let updating = true;
-    if (!tr) {
-        updating = false;
-        tr = document.createElement('tr');
-    }
 
-    const idEl = `<th scope="row">${item.id}</th>`;
-    const titleEl = `<td><a href="${item.url}" target="_blank" rel="noopener noreferrer">${item.title}</a></td>`;
-    const typeEl = `<td>${item.type}</td>`;
-    let source;
-    if (sources[item.source]) {
-        const sourceData = sources[item.source];
-        source = `<td><a href="${sourceData.url}" target="_blank" rel="noopener noreferrer">${sourceData.name}</a></td>`;
-    } else
-        source = `<td>unknown</td>`;
-    const dateEl = `<td>${item.date}</td>`;
-    let impactsEl;
-    if (item.impacts)
-        impactsEl = '<td>' + item.impacts.map(i => i.name).join(', ') + '</td>';
-    else
-        impactsEl = '<td></td>';
-    let communitiesEl;
-    if (item.communities)
-        communitiesEl = '<td>' + item.communities.map(c => c.name).join(', ') + '</td>';
-    else
-        communitiesEl = '<td></td>';
-    const locationEl = `<td>${item.location}</td>`;
-    const approvedEl = `<td class="text-center">${item.approved ? '<i class="bi bi-check-lg"></i>' : '<i class="bi bi-hourglass-split"></i>'}</td>`;
-    const editEl = `<td class="text-end"><i onclick="editArticle(${item.id})" data-bs-toggle="modal" data-bs-target="#add-modal" class="bi bi-pencil pointer"></i></td>`;
-
-    tr.innerHTML = idEl + titleEl + typeEl + source + dateEl + impactsEl + communitiesEl + locationEl + approvedEl + editEl;
-
-    if (!updating) {
-        const resultsContainer = document.getElementById('result-table');
-        resultsContainer.appendChild(tr);
-    }
-
-    return tr;
-}
 
 function deleteRow(articleId) {
     const rows = document.querySelectorAll("#result-table tr");
@@ -409,23 +344,11 @@ function updateRow(item) {
 
     for (const row of rows) {
         if (row.querySelector("th").innerText == item.id) {
-            return addRow(item, row);
+            return addRow(item, row, fields);
         }
     }
 }
 
-function renderResults(items) {
-    const resultsContainer = document.getElementById('result-table');
-
-    if (items.length === 0) {
-        resultsContainer.innerHTML = '<tr><td colspan="10" class="text-center">No articles found!</td></tr>';
-        return;
-    }
-
-    items.forEach(item => {
-        addRow(item);
-    });
-}
 
 window.addEventListener('DOMContentLoaded', function () {
     const dateElem = document.querySelector('input[name="date"]');
@@ -638,22 +561,6 @@ window.addEventListener('DOMContentLoaded', function () {
     //     }
     // });
 
-
-    // Fetch article list
-    async function fetchItems(page = 1) {
-        const params = new URLSearchParams();
-        params.append('page', page);
-        params.append('limit', 100);
-
-        fetch(`${ROOT || ''}/api/search?${params.toString()}`)
-            .then(res => res.json())
-            .then(data => {
-                data.articles.forEach(item => {
-                    articles[item.id] = item;
-                });
-                renderResults(data.articles);
-            });
-    }
 
     Promise.all([sourcesPromise, communitiesPromise, impactsPromise, continentsPromise]).then(() => {
         fetchItems();

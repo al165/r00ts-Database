@@ -39,7 +39,7 @@
   <div class="card m-4 p-3">
     <h4>Articles</h4>
     <table class="table">
-      <thead>
+      <thead id="result-headings">
         <tr>
           <th scope="col">id</th>
           <th scope="col-6">title</th>
@@ -48,7 +48,7 @@
           <th scope="col">date</th>
           <th scope="col">impacts</th>
           <th scope="col">communities</th>
-          <th scope="col">place</th>
+          <th scope="col">location</th>
           <th scope="col">approved</th>
           <th scope="col" class="text-end">edit</th>
         </tr>
@@ -193,8 +193,16 @@
   <script>
     const ROOT = '<%= root %>';
   </script>
-
+  <script src="<%= root %>/common.js"></script>
   <script src="<%= root %>/dashboard.js"></script>
+  <script>
+    window.fieldRender.approved = (item) => {
+      return `<td class="text-center">${item.approved ? '<i class="bi bi-check-lg"></i>' : '<i class="bi bi-hourglass-split"></i>'}</td>`;
+    }
+    window.fieldRender.edit = (item) => {
+      return `<td class="text-end"><i onclick="editArticle(${item.id})" data-bs-toggle="modal" data-bs-target="#add-modal" class="bi bi-pencil pointer"></i></td>`;
+    }
+  </script>
 
 </body>
 

@@ -25,7 +25,7 @@
   <div class="card my-4 p-3">
     <h4>Articles</h4>
     <table class="table">
-      <thead>
+      <thead id="result-headings">
         <tr>
           <th scope="col">id</th>
           <th scope="col-6">title</th>
@@ -34,34 +34,24 @@
           <th scope="col">date</th>
           <th scope="col">impacts</th>
           <th scope="col">communities</th>
-          <th scope="col">place</th>
+          <th scope="col">location</th>
         </tr>
       </thead>
-      <tbody>
-        <% if (articles.length===0) { %>
-        <tr>
-          <td colspan="8" class="text-center">
-            No articles found!
-          </td>
-        </tr>
-        <% } else { %>
-        <% articles.forEach(article=> { %>
-        <tr>
-          <th scope="row"><%= article.id %></th>
-          <td><a href="<%=article.url %>" target="_blank" rel="noopener noreferrer"><%= article.title %></a></td>
-          <td><%= article.type %></td>
-          <td><%= article.source %></td>
-          <td><%= article.date %></td>
-          <td><%= article.impacts %></td>
-          <td><%= article.communities %></td>
-          <td><%= article.place %></td>
-        </tr>
-        <% }) %>
-        <% } %>
+      <tbody id="result-table">
       </tbody>
     </table>
   </div>
 
+  <script>
+    const ROOT = '<%= root %>';
+  </script>
+  <script src="<%= root %>/common.js"></script>
+
+  <script>
+    window.addEventListener('DOMContentLoaded', function() {
+      fetchItems();
+    });
+  </script>
 </body>
 
 </html>
