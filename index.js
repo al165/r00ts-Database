@@ -341,7 +341,7 @@ app.post('/api/article', isAuthenticated, upload.none(), async (req, res) => {
         FROM Articles a
         WHERE id = ?
     `;
-    const newRowData = await db.get(statement, [id]);
+    const newRowData = await db.get(statement, [articleId]);
     const newRow = {
         ...newRowData,
         companies: JSON.parse(newRowData.companies),
