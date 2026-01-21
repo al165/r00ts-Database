@@ -254,7 +254,7 @@ async function sendNewArticle(ev) {
             closeModal();
 
             articles[newRow.id] = newRow;
-            const rowEl = addRow(newRow);
+            const rowEl = addRow(newRow, undefined, fields);
             rowEl.classList.add('table-success');
 
         }).catch(err => {
