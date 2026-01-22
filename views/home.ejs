@@ -50,7 +50,11 @@
 
   <script>
     window.addEventListener('DOMContentLoaded', function() {
-      fetchItems();
+      // Get sources 
+      Promise.all([sourcesPromise, communitiesPromise, companiesPromise, impactsPromise]).then(() => {
+        fetchItems();
+      });
+
     });
   </script>
 </body>
