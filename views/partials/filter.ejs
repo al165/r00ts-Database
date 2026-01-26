@@ -1,0 +1,52 @@
+<div class="collapse" id="collapseExample">
+    <div class="card card-body m-4">
+        <form id="search-form">
+        <div class="card-body row">
+          <div class="col">
+            <div class="input-group mb-3">
+              <label class="input-group-text" for="filter-type">Type</label>
+              <select class="form-select" name="type" id="filter-type">
+                <option value="" selected>All</option>
+                <option value="article">Article</option>
+                <option value="resource">Resource</option>
+                <option value="press-release">Press release</option>
+                <option value="meme">Meme</option>
+              </select>
+            </div>
+            <div class="input-group mb-3">
+              <label class="input-group-text" for="filter-source">Source</label>
+              <select class="form-select" name="type" id="filter-source">
+                <option value="">All</option>
+              </select>
+            </div>
+            <div class="input-group mb-3">
+              <label class="input-group-text" for="filter-perspective">Perspective</label>
+              <select class="form-select" name="type" id="filter-perspective">
+                <option value="">All</option>
+              </select>
+            </div>
+          </div>
+          <div class="col">
+          <% if(hasApproved) { %>
+            <label for="filter-approved">Approved</label>
+            <div class="form-check">
+              <input class="form-check-input" type="radio" name="filter-approved" id="approved-all" checked>
+              <label class="form-check-label" for="approved-all">All</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="radio" name="filter-approved" id="approved-only">
+              <label class="form-check-label" for="approved-only">Approved only</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="radio" name="filter-approved" id="approved-none">
+              <label class="form-check-label" for="approved-none">Un-approved only</label>
+            </div>
+          <% } %>
+          </div>
+        </div>
+        <div>
+          <button id="search-btn" class="btn btn-primary me-2" type="button">Update search</button>
+        </div>
+        </form>
+    </div>
+</div>

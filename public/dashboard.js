@@ -19,18 +19,6 @@ function fillPlaceList(placeEl, data, placeholder) {
     }
 }
 
-function fillOptionList(selectElem, data, clear = true, value = 'id', key = 'name', option_type = 'option') {
-    if (clear)
-        selectElem.innerHTML = '';
-
-    for (const item of Object.values(data)) {
-        const option = document.createElement(option_type);
-        option.innerText = item[key];
-        option.value = item[value];
-        selectElem.appendChild(option);
-    }
-}
-
 function initMultiselect(multiselect) {
     const options = multiselect.querySelectorAll("option");
     for (const option of options) {
@@ -357,17 +345,6 @@ function updateRow(item) {
     }
 }
 
-function search() {
-    const searchParams = {};
-
-    if (document.querySelector("#approved-only").checked)
-        searchParams.approved = 1;
-    else if (document.querySelector("#approved-none").checked)
-        searchParams.approved = 0;
-
-    fetchItems(1, searchParams);
-}
-
 window.addEventListener('DOMContentLoaded', function() {
     const dateElem = document.querySelector('input[name="date"]');
     const _datepicker = new Datepicker(dateElem, {
@@ -626,6 +603,7 @@ window.addEventListener('DOMContentLoaded', function() {
         search();
 
         fillOptionList(sourceListSelect, sources, clear = false);
+        fillOptionList(document.querySelector("#filter-source"), sources, clear = false);
 
         fillOptionList(companiesSelect, companies);
         initMultiselect(companiesSelect);
@@ -637,10 +615,6 @@ window.addEventListener('DOMContentLoaded', function() {
         initMultiselect(communitySelect);
 
         fillOptionList(perspectivesSelect, perspectives);
-    });
-
-    document.querySelector("#search-btn").addEventListener('click', ev => {
-        ev.preventDefault();
-        search();
+        fillOptionList(document.querySelector("#filter-perspective"), perspectives, clear = false);
     });
 });

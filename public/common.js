@@ -40,6 +40,18 @@ let perspectivesPromise = fetch(`${ROOT || ''}/api/perspectives`).then(res => {
 
 let articles = {};
 
+function fillOptionList(selectElem, data, clear = true, value = 'id', key = 'name', option_type = 'option') {
+    if (clear)
+        selectElem.innerHTML = '';
+
+    for (const item of Object.values(data)) {
+        const option = document.createElement(option_type);
+        option.innerText = item[key];
+        option.value = item[value];
+        selectElem.appendChild(option);
+    }
+}
+
 window.fieldRender = {
     id: (item) => {
         return `<th scope="row">${item.id}</th>`
@@ -139,6 +151,34 @@ function renderResults(items) {
     });
 }
 
+function search() {
+    const searchParams = {};
+
+    if (document.querySelector("#approved")) {
+        if (document.querySelector("#approved-only").checked)
+            searchParams.approved = 1;
+        else if (document.querySelector("#approved-none").checked)
+            searchParams.approved = 0;
+    }
+
+    const filterType = document.querySelector("#filter-type");
+    if (filterType.selectedIndex > 0) {
+        searchParams.type = filterType.selectedOptions[0].value;
+    }
+
+    const filterSource = document.querySelector("#filter-source");
+    if (filterSource.selectedIndex > 0) {
+        searchParams.source = filterSource.selectedOptions[0].value;
+    }
+
+    const filterPerspective = document.querySelector("#filter-perspective");
+    if (filterPerspective.selectedIndex > 0) {
+        searchParams.perspective = filterPerspective.selectedOptions[0].value;
+    }
+
+    fetchItems(1, searchParams);
+}
+
 // Fetch article list
 async function fetchItems(page = 1, searchParams = {}) {
     const params = new URLSearchParams();
@@ -148,6 +188,8 @@ async function fetchItems(page = 1, searchParams = {}) {
     for (const key of Object.keys(searchParams)) {
         params.append(key, searchParams[key]);
     }
+
+    console.log(params);
 
     fetch(`${ROOT || ''}/api/search?${params.toString()}`)
         .then(res => res.json())
@@ -159,3 +201,10 @@ async function fetchItems(page = 1, searchParams = {}) {
             renderResults(data.articles);
         });
 }
+
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelector("#search-btn").addEventListener('click', ev => {
+        ev.preventDefault();
+        search();
+    });
+});

@@ -21,6 +21,16 @@
     </div>
   </nav>
 
+  <div class="card my-4 p-3">
+      <div>
+        <button class="btn btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#collapseExample"
+          aria-expanded="false" aria-controls="collapseExample">
+          Search Filter...
+        </button>
+        <%- include('partials/filter.ejs', {hasApproved: false}); %>
+      </div>
+  </div>
+
   <!-- List of Articles -->
   <div class="card my-4 p-3">
     <h4>Articles</h4>
@@ -54,6 +64,10 @@
       // Get sources 
       Promise.all([sourcesPromise, communitiesPromise, companiesPromise, impactsPromise, perspectivesPromise]).then(() => {
         fetchItems();
+
+        fillOptionList(document.querySelector("#filter-source"), sources, clear = false);
+        fillOptionList(document.querySelector("#filter-perspective"), perspectives, clear = false);
+
       });
 
     });

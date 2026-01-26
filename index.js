@@ -143,22 +143,39 @@ app.get('/api/search', async (req, res) => {
     const limit = Math.min(parseInt(req.query.limit) || 20, 100);
     const offset = (page - 1) * limit;
 
-    let { approved } = req.query;
+    let { approved, type, source, perspective } = req.query;
 
     if (approved) approved = parseInt(approved);
+    if (source) source = parseInt(source);
+    if (perspective) perspective = parseInt(perspective);
 
     let whereClauses = [];
-    if (!checkAuthenticated(req) || approved == 1) {
-        whereClauses.push('approved = 1');
+    let whereArgs = [];
+
+    if (checkAuthenticated(req) && approved == 0) {
+        whereClauses.push('a.approved = 0');
+    } else {
+        whereClauses.push('a.approved = 1');
     }
 
-    if (approved == 0) {
-        whereClauses.push('approved = 0');
+    if (source != undefined) {
+        whereClauses.push('a.source = ?');
+        whereArgs.push(source);
+    }
+
+    if (type != undefined) {
+        whereClauses.push('a.type = ?');
+        whereArgs.push(type);
+    }
+
+    if (perspective != undefined) {
+        whereClauses.push('a.perspective = ?');
+        whereArgs.push(perspective);
     }
 
     let whereClause = '';
     if (whereClauses.length) {
-        whereClause = `WHERE ${whereClauses.join(',\n')}`;
+        whereClause = `WHERE ${whereClauses.join(' AND\n')}`;
     }
 
     const sql = `
@@ -185,10 +202,11 @@ app.get('/api/search', async (req, res) => {
         LIMIT ?
         OFFSET ?;
     `;
+
     const db = await dbPromise;
     const rows = await db.all(
         sql,
-        [limit, offset]
+        [...whereArgs, limit, offset]
     );
 
     const articles = rows.map(row => ({

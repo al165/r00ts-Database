@@ -39,33 +39,8 @@
         aria-expanded="false" aria-controls="collapseExample">
         Search Filter...
       </button>
-      <div class="collapse" id="collapseExample">
-        <div class="card card-body m-4">
-          <form id="search-form">
-            <div class="card-body">
-              <div class="form-check">
-                <input class="form-check-input" type="radio" name="filter-approved" id="approved-all" checked>
-                <label class="form-check-label" for="approved-all">All</label>
-              </div>
-              <div class="form-check">
-                <input class="form-check-input" type="radio" name="filter-approved" id="approved-only">
-                <label class="form-check-label" for="approved-only">Approved only</label>
-              </div>
-              <div class="form-check">
-                <input class="form-check-input" type="radio" name="filter-approved" id="approved-none">
-                <label class="form-check-label" for="approved-none">Un-approved only</label>
-              </div>
-
-              <div>
-                <button id="search-btn" class="btn btn-primary me-2" type="button">Update
-                  search</button>
-              </div>
-            </div>
-        </div>
-        </form>
-      </div>
+        <%- include('partials/filter.ejs', {hasApproved: true}); %>
     </div>
-  </div>
   </div>
 
   <!-- List of Articles -->
