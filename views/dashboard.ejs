@@ -8,7 +8,9 @@
   <link rel="stylesheet" href="<%= root %>/style.css">
 
   <!-- Bootstrap 5 -->
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-ka7Sk0Gln4gmtz2MlQnikT1wXgYsOg+OMhuP+IlRH9sENBO0LRn5q+8nbTov4+1p" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"
+    integrity="sha384-ka7Sk0Gln4gmtz2MlQnikT1wXgYsOg+OMhuP+IlRH9sENBO0LRn5q+8nbTov4+1p"
+    crossorigin="anonymous"></script>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 
@@ -31,8 +33,10 @@
   <!-- Tools -->
   <div class="card m-4 p-3">
     <div>
-      <button id="add-article-btn" class="btn btn-primary me-2" type="button" data-bs-toggle="modal" data-bs-target="#add-modal">Add article</button>
-      <button class="btn btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#collapseExample" aria-expanded="false" aria-controls="collapseExample">
+      <button id="add-article-btn" class="btn btn-primary me-2" type="button" data-bs-toggle="modal"
+        data-bs-target="#add-modal">Add article</button>
+      <button class="btn btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#collapseExample"
+        aria-expanded="false" aria-controls="collapseExample">
         Search Filter...
       </button>
       <div class="collapse" id="collapseExample">
@@ -53,7 +57,8 @@
               </div>
 
               <div>
-                <button id="search-btn" class="btn btn-primary me-2" type="button">Update search</button>
+                <button id="search-btn" class="btn btn-primary me-2" type="button">Update
+                  search</button>
               </div>
             </div>
         </div>
@@ -74,6 +79,7 @@
           <th scope="col">type</th>
           <th scope="col">source</th>
           <th scope="col">date</th>
+          <th scope="col">perspective</th>
           <th scope="col">companies</th>
           <th scope="col">impacts</th>
           <th scope="col">communities</th>
@@ -130,7 +136,8 @@
               <select class="form-select" id="article-source" name="source">
                 <option value="" selected>Choose...</option>
               </select>
-              <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">new</button>
+              <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown"
+                aria-expanded="false">new</button>
               <div class="dropdown-menu p-2">
                 <div class="mb-3">
                   <input type="text" placeholder="Name" id="new-source-name">
@@ -157,13 +164,23 @@
               </select>
             </div>
 
+            <!-- Perspective -->
+            <div class="input-group mb-3">
+              <label class="input-group-text" for="article-perspective">Perspective</label>
+              <select class="form-select" value="" id="article-perspective" name="perspective">
+              </select>
+            </div>
+
             <!-- Companies -->
             <div class="input-group mb-3">
               <label class="input-group-text">Companies</label>
-              <button class="btn btn-outline-secondary dropdown-toggle text-start" type="button" data-bs-toggle="dropdown" aria-expanded="false">None</button>
-              <select class="dropdown-menu" name="companies" multiple id="companies-select" aria-label="Companies multiselect menu">
+              <button class="btn btn-outline-secondary dropdown-toggle text-start" type="button"
+                data-bs-toggle="dropdown" aria-expanded="false">None</button>
+              <select class="dropdown-menu" name="companies" multiple id="companies-select"
+                aria-label="Companies multiselect menu">
               </select>
-              <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">new</button>
+              <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown"
+                aria-expanded="false">new</button>
               <div class="dropdown-menu p-2">
                 <div class="mb-3">
                   <input type="text" placeholder="Name" id="new-company-name">
@@ -175,10 +192,13 @@
             <!-- Impacts -->
             <div class="input-group mb-3">
               <label class="input-group-text">Impacts</label>
-              <button class="btn btn-outline-secondary dropdown-toggle text-start" type="button" data-bs-toggle="dropdown" aria-expanded="false">None</button>
-              <select class="dropdown-menu" name="impacts" multiple id="impact-select" aria-label="Impact multiselect menu">
+              <button class="btn btn-outline-secondary dropdown-toggle text-start" type="button"
+                data-bs-toggle="dropdown" aria-expanded="false">None</button>
+              <select class="dropdown-menu" name="impacts" multiple id="impact-select"
+                aria-label="Impact multiselect menu">
               </select>
-              <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">new</button>
+              <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown"
+                aria-expanded="false">new</button>
               <div class="dropdown-menu p-2">
                 <div class="mb-3">
                   <input type="text" placeholder="Name" id="new-impact-name">
@@ -190,10 +210,13 @@
             <!-- Communities -->
             <div class="input-group mb-3">
               <label class="input-group-text">Communities</label>
-              <button class="btn btn-outline-secondary dropdown-toggle text-start" type="button" data-bs-toggle="dropdown" aria-expanded="false">None</button>
-              <select class="dropdown-menu" name="communities" multiple id="communities-select" aria-label="Communities multiselect menu">
+              <button class="btn btn-outline-secondary dropdown-toggle text-start" type="button"
+                data-bs-toggle="dropdown" aria-expanded="false">None</button>
+              <select class="dropdown-menu" name="communities" multiple id="communities-select"
+                aria-label="Communities multiselect menu">
               </select>
-              <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">new</button>
+              <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown"
+                aria-expanded="false">new</button>
               <div class="dropdown-menu p-2">
                 <div class="mb-3">
                   <input type="text" placeholder="Name" id="new-community-name">
@@ -219,6 +242,12 @@
               </select> -->
             </div>
 
+            <!-- Notes -->
+            <div class="input-group mb-3">
+              <label class="input-group-text" for="article-notes">Notes</label>
+              <textarea class="form-control" id="article-notes" name="notes"></textarea>
+            </div>
+
             <!-- Approved -->
             <input class="form-check-input" type="checkbox" id="approved" name="approved">
             <label class="form-check-label" for="approved">Approved</label>
@@ -235,7 +264,7 @@
   </div>
 
   <script>
-    const ROOT = '<%= root %>';
+    ROOT = '<%= root %>';
   </script>
   <script src="<%= root %>/common.js"></script>
   <script src="<%= root %>/dashboard.js"></script>

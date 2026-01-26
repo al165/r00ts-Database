@@ -169,6 +169,7 @@ app.get('/api/search', async (req, res) => {
         a.type,
         a.source,
         a.date,
+        a.perspective,
         a.location,
         a.continent,
         a.country,
@@ -176,6 +177,7 @@ app.get('/api/search', async (req, res) => {
         a.city,
         a.addedBy,
         a.addDate,
+        a.notes,
         a.approved,
         ${relationSql}
         FROM Articles a
@@ -227,12 +229,19 @@ app.get('/api/companies', async (_req, res) => {
     return res.json(companies);
 });
 
+app.get('/api/perspectives', async (_req, res) => {
+    const db = await dbPromise;
+    const perspectives = await db.all("SELECT * FROM Perspectives");
+
+    return res.json(perspectives);
+});
+
 app.post('/api/article', isAuthenticated, upload.none(), async (req, res) => {
     console.log("POST /api/article");
 
     console.log(req.body);
 
-    let { title, url, date, source, type, companies, impacts, communities, continent, country, region, city, approved } = req.body;
+    let { title, url, date, source, type, perspective, companies, impacts, communities, continent, country, region, city, notes, approved } = req.body;
 
     if (source) source = parseInt(source);
     if (continent) continent = parseInt(continent);
@@ -241,7 +250,11 @@ app.post('/api/article', isAuthenticated, upload.none(), async (req, res) => {
     if (city) city = parseInt(city);
     approved = approved ? 1 : 0;
 
-    if (!title || !url)
+    if (notes == undefined) notes = "";
+    console.log(notes);
+    if (perspective) perspective = parseInt(perspective);
+
+    if (!title || !url || source == undefined)
         return res.sendStatus(400);
 
     const db = await dbPromise;
@@ -285,8 +298,8 @@ app.post('/api/article', isAuthenticated, upload.none(), async (req, res) => {
 
     let articleId;
     await db.run(
-        "INSERT INTO Articles(title, url, type, source, date, continent, country, region, city, location, approved, addedBy, addDate) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        [title, url, type, source, date, continent, country, region, city, location, approved, addedBy, addDate],
+        "INSERT INTO Articles(title, url, type, source, date, perspective, continent, country, region, city, location, notes, approved, addedBy, addDate) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        [title, url, type, source, date, perspective, continent, country, region, city, location, notes, approved, addedBy, addDate],
         (error) => {
             next(error);
         }).then(result => {
@@ -329,11 +342,13 @@ app.post('/api/article', isAuthenticated, upload.none(), async (req, res) => {
         a.type,
         a.source,
         a.date,
+        a.perspective,
         a.location,
         a.continent,
         a.country,
         a.region,
         a.city,
+        a.notes,
         a.addedBy,
         a.addDate,
         a.approved,
@@ -376,7 +391,7 @@ app.put('/api/article', isAuthenticated, upload.none(), async (req, res, next) =
 
     console.log(req.body);
 
-    let { id, title, url, date, source, type, companies, impacts, communities, continent, country, region, city, approved } = req.body;
+    let { id, title, url, date, source, type, perspective, companies, impacts, communities, continent, country, region, city, notes, approved } = req.body;
 
     if (id == undefined)
         return res.sendStatus(400);
@@ -387,6 +402,8 @@ app.put('/api/article', isAuthenticated, upload.none(), async (req, res, next) =
     if (region) region = parseInt(region);
     if (city) city = parseInt(city);
     approved = approved ? 1 : 0;
+    if (perspective) perspective = parseInt(perspective);
+    if (notes == undefined) notes = "";
 
     let sqlSet = [];
     let args = [];
@@ -460,6 +477,12 @@ app.put('/api/article', isAuthenticated, upload.none(), async (req, res, next) =
     sqlSet.push('location = ?');
     args.push(location);
 
+    sqlSet.push('perspective = ?');
+    args.push(perspective);
+
+    sqlSet.push('notes = ?');
+    args.push(notes);
+
     sqlSet.push('approved = ?');
     args.push(approved);
 
@@ -512,6 +535,7 @@ app.put('/api/article', isAuthenticated, upload.none(), async (req, res, next) =
         a.type,
         a.source,
         a.date,
+        a.perspective,
         a.location,
         a.continent,
         a.country,
@@ -519,6 +543,7 @@ app.put('/api/article', isAuthenticated, upload.none(), async (req, res, next) =
         a.city,
         a.addedBy,
         a.addDate,
+        a.notes,
         a.approved,
         ${relationSql}
         FROM Articles a

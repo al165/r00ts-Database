@@ -30,6 +30,14 @@ let communitiesPromise = fetch(`${ROOT || ''}/api/communities`).then(res => {
         communities[data[item].id] = data[item];
 });
 
+let perspectives = {};
+let perspectivesPromise = fetch(`${ROOT || ''}/api/perspectives`).then(res => {
+    return res.json();
+}).then(data => {
+    for (const item of Object.keys(data))
+        perspectives[data[item].id] = data[item];
+})
+
 let articles = {};
 
 window.fieldRender = {
@@ -52,6 +60,12 @@ window.fieldRender = {
     date: (item) => {
         return `<td>${item.date}</td>`;
     },
+    perspective: (item) => {
+        if (item.perspective)
+            return `<td>${perspectives[item.perspective].name}</td>`;
+        else
+            return '<td>Unknown</td>';
+    },
     companies: (item) => {
         if (item.companies)
             return '<td>' + item.companies.map(c => c.name).join(', ') + '</td>';
@@ -72,6 +86,9 @@ window.fieldRender = {
     },
     location: (item) => {
         return `<td>${item.location}</td>`;
+    },
+    notes: (item) => {
+        return `<td>${item.notes || ''}</td>`;
     }
 
 };

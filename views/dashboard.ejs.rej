@@ -1,0 +1,26 @@
+diff a/views/dashboard.ejs b/views/dashboard.ejs	(rejected hunks)
+@@ -235,19 +235,18 @@
+   </div>
+ 
+   <script>
+     ROOT = '<%= root %>';
+   </script>
+   <script src="<%= root %>/common.js"></script>
+   <script src="<%= root %>/dashboard.js"></script>
+   <script>
+-    window.fieldRender.approved = (item) => {
+-      return `<td class="text-center">${item.approved ? '<i class="bi bi-check-lg"></i>' : '<i class="bi bi-hourglass-split"></i>'}</td>`;
+-    }
+-    window.fieldRender.edit = (item) => {
+-      return `<td class="text-end"><i onclick="editArticle(${item.id})" data-bs-toggle="modal" data-bs-target="#add-modal" class="bi bi-pencil pointer"></i></td>`;
++    fieldRender.approved = (item) => {
++      <td class="text-center">${item.approved ? '<i class="bi bi-check-lg"></i>' : '<i class="bi bi-hourglass-split"></i>'}</td>`;
++                  fieldRender.edit = (item) => {
++              <td class="text-end"><i onclick="editArticle(${item.id})" data-bs-toggle="modal" data-bs-target="#add-modal" class="bi bi-pencil pointer"></i></td>`;
+     }
+   </script>
+ 
+ </body>
+ 
+\ No newline at end of file
+ </html>

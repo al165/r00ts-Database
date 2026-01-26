@@ -155,6 +155,8 @@ function newArticle() {
     articleForm.querySelector("[name=date]").value = "";
     articleForm.querySelector("[name=type]").selectedIndex = 0;
     articleForm.querySelector("[name=source]").selectedIndex = 0;
+    articleForm.querySelector("[name=perspective]").selectedIndex = 0;
+    articleForm.querySelector("[name=notes]").value = '';
 
     const companies = articleForm.querySelector("[name=companies]");
     setSelectOption(companies, [], true, true);
@@ -173,6 +175,7 @@ function newArticle() {
 
 function editArticle(articleId) {
     let articleData = articles[articleId];
+    console.log(articleData);
 
     const articleForm = document.querySelector("#add-article");
 
@@ -199,9 +202,13 @@ function editArticle(articleId) {
     const communities = articleForm.querySelector("[name=communities]");
     setSelectOption(communities, communityIds, true);
 
+    const perspectiveSelect = articleForm.querySelector("[name=perspective]");
+    setSelectOption(perspectiveSelect, articleData.perspective, false, true);
+
     const { continent, country, region } = articleData;
     setPlaceSelect(continent, country, region);
 
+    articleForm.querySelector("[name=notes]").value = articleData.notes || '';
     articleForm.querySelector("[name=approved]").checked = articleData.approved ? true : false;
 
     articleForm.querySelector("#send-article").innerText = "Update";
@@ -361,7 +368,7 @@ function search() {
     fetchItems(1, searchParams);
 }
 
-window.addEventListener('DOMContentLoaded', function () {
+window.addEventListener('DOMContentLoaded', function() {
     const dateElem = document.querySelector('input[name="date"]');
     const _datepicker = new Datepicker(dateElem, {
         autohide: true,
@@ -428,6 +435,10 @@ window.addEventListener('DOMContentLoaded', function () {
             console.error(e);
         }
     });
+
+    // Perspective
+    const perspectivesSelect = document.querySelector("#article-perspective");
+
 
     // Companies
     const companiesSelect = document.querySelector("#companies-select");
@@ -557,7 +568,7 @@ window.addEventListener('DOMContentLoaded', function () {
         fillOptionList(continentListSelect, data, false);
     });
 
-    continentListSelect.addEventListener('change', ev => {
+    continentListSelect.addEventListener('change', _ev => {
         regionListSelect.setAttribute('disabled', true);
         regionListSelect.innerHTML = '<option value="">Region</option>';
         // cityListSelect.setAttribute('disabled', true);
@@ -578,7 +589,7 @@ window.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    countryListSelect.addEventListener('change', ev => {
+    countryListSelect.addEventListener('change', _ev => {
         // cityListSelect.setAttribute('disabled', true);
         // cityListSelect.innerHTML = '<option value="">City</option>';
 
@@ -611,7 +622,7 @@ window.addEventListener('DOMContentLoaded', function () {
     // });
 
 
-    Promise.all([sourcesPromise, communitiesPromise, companiesPromise, impactsPromise, continentsPromise]).then(() => {
+    Promise.all([sourcesPromise, communitiesPromise, companiesPromise, impactsPromise, continentsPromise, perspectivesPromise]).then(() => {
         search();
 
         fillOptionList(sourceListSelect, sources, clear = false);
@@ -624,6 +635,8 @@ window.addEventListener('DOMContentLoaded', function () {
 
         fillOptionList(communitySelect, communities);
         initMultiselect(communitySelect);
+
+        fillOptionList(perspectivesSelect, perspectives);
     });
 
     document.querySelector("#search-btn").addEventListener('click', ev => {

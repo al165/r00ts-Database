@@ -14,7 +14,7 @@ CREATE TABLE Articles(
     location TEXT,
     addedBy TEXT,
     addDate TEXT,
-	approved INTEGER DEFAULT 0,
+    approved INTEGER DEFAULT 0,
     FOREIGN KEY (source) REFERENCES Sources(id),
     FOREIGN KEY (continent) REFERENCES Place(id),
     FOREIGN KEY (country) REFERENCES Place(id),
