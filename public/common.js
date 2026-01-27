@@ -40,6 +40,65 @@ let perspectivesPromise = fetch(`${ROOT || ''}/api/perspectives`).then(res => {
 
 let articles = {};
 
+let continentList = [];
+let countryList = [];
+let regionList = [];
+
+function fillPlaceList(placeEl, data, placeholder) {
+    if (Object.keys(data).length == 0) {
+        placeEl.setAttribute("disabled", true);
+        placeEl.innerHTML = `<option>${placeholder}</option>`;
+        return;
+    }
+
+    placeEl.removeAttribute("disabled");
+    placeEl.innerHTML = '<option value="">All</option>';
+    for (const item of Object.values(data)) {
+        const option = document.createElement('option');
+        option.innerText = item['name'];
+        option.value = item['id'];
+        placeEl.appendChild(option);
+    }
+}
+
+function initLocationList(continentListSelect, countryListSelect, regionListSelect) {
+
+    continentListSelect.addEventListener('change', _ev => {
+        regionListSelect.setAttribute('disabled', true);
+        regionListSelect.innerHTML = '<option value="">Region</option>';
+
+        if (!continentListSelect.selectedOptions[0].value) {
+            countryListSelect.setAttribute('disabled', true);
+            countryListSelect.innerHTML = '<option value="">Country</option>';
+        } else {
+            countryListSelect.innerHTML = '<option value="" selected>All</option>';
+            countryListSelect.removeAttribute('disabled');
+            const selectedContinent = continentListSelect.selectedOptions[0].innerText;
+
+            getPlaceList('continent', selectedContinent).then(data => {
+                countryList = data;
+                fillPlaceList(countryListSelect, data, "Country");
+            });
+        }
+    });
+
+    countryListSelect.addEventListener('change', _ev => {
+        if (countryListSelect.selectedOptions[0].value == -1) {
+            regionListSelect.setAttribute('disabled', true);
+            regionListSelect.innerHTML = '<option value="">Region</option>';
+        } else {
+            regionListSelect.innerHTML = '<option value="" selected>All</option>';
+            regionListSelect.removeAttribute('disabled');
+            const selectedCountry = countryListSelect.selectedOptions[0].innerText;
+
+            getPlaceList('country', selectedCountry).then(data => {
+                regionList = data;
+                fillPlaceList(regionListSelect, data, "Region");
+            });
+        }
+    });
+}
+
 function fillOptionList(selectElem, data, clear = true, value = 'id', key = 'name', option_type = 'option') {
     if (clear)
         selectElem.innerHTML = '';
@@ -50,6 +109,45 @@ function fillOptionList(selectElem, data, clear = true, value = 'id', key = 'nam
         option.value = item[value];
         selectElem.appendChild(option);
     }
+}
+
+function initMultiselect(multiselect, update_label = true) {
+    const options = multiselect.querySelectorAll("option");
+    for (const option of options) {
+        option.onmousedown = ev => {
+            ev.preventDefault();
+            multiselect.focus();
+            option.selected = !option.selected;
+            multiselect.dispatchEvent(new Event('change'));
+            return false;
+        };
+    }
+
+    if (update_label) {
+        multiselect.addEventListener('change', _ev => {
+            let selected = [];
+            for (const option of options) {
+                if (option.selected)
+                    selected.push(option.innerText);
+            }
+
+            let label = 'None';
+            if (selected.length) {
+                label = selected.join(', ');
+            }
+
+            multiselect.previousSibling.previousSibling.innerText = label;
+        });
+    }
+}
+
+async function getPlaceList(divisionType, divisionName, placeId = "") {
+    if (!divisionName || divisionName === "All")
+        return [];
+    return fetch(`${ROOT || ''}/api/places?divisionType=${divisionType}&divisionName=${divisionName}&placeId=${placeId}`)
+        .then(res => {
+            return res.json()
+        });
 }
 
 window.fieldRender = {
@@ -161,20 +259,30 @@ function search() {
             searchParams.approved = 0;
     }
 
-    const filterType = document.querySelector("#filter-type");
-    if (filterType.selectedIndex > 0) {
-        searchParams.type = filterType.selectedOptions[0].value;
+    function addSelectedItem(select, param_name) {
+        if (select && select.selectedIndex > 0)
+            searchParams[param_name] = select.selectedOptions[0].value;
     }
 
-    const filterSource = document.querySelector("#filter-source");
-    if (filterSource.selectedIndex > 0) {
-        searchParams.source = filterSource.selectedOptions[0].value;
+    function addMultiselectItems(multiselect, param_name) {
+        if (!multiselect || multiselect.selectedOptions.length == 0) return;
+
+        searchParams[param_name] = [];
+        for (const item of multiselect.selectedOptions) {
+            searchParams[param_name].push(item.value);
+        }
     }
 
-    const filterPerspective = document.querySelector("#filter-perspective");
-    if (filterPerspective.selectedIndex > 0) {
-        searchParams.perspective = filterPerspective.selectedOptions[0].value;
-    }
+    addSelectedItem(document.querySelector("#filter-type"), 'type');
+    addSelectedItem(document.querySelector("#filter-source"), 'source');
+    addSelectedItem(document.querySelector("#filter-perspective"), 'perspective');
+    addSelectedItem(document.querySelector("#filter-continent"), 'continent');
+    addSelectedItem(document.querySelector("#filter-country"), 'country');
+    addSelectedItem(document.querySelector("#filter-region"), 'region');
+
+    addMultiselectItems(document.querySelector("#filter-companies"), 'companies');
+    addMultiselectItems(document.querySelector("#filter-impacts"), 'impacts');
+    addMultiselectItems(document.querySelector("#filter-communities"), 'communities');
 
     fetchItems(1, searchParams);
 }
@@ -186,7 +294,12 @@ async function fetchItems(page = 1, searchParams = {}) {
     params.append('limit', 100);
 
     for (const key of Object.keys(searchParams)) {
-        params.append(key, searchParams[key]);
+        const value = searchParams[key];
+        if (Array.isArray(value)) {
+            for (const val of value)
+                params.append(key, val);
+        } else
+            params.append(key, value);
     }
 
     console.log(params);
@@ -203,6 +316,21 @@ async function fetchItems(page = 1, searchParams = {}) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+
+    // Places
+    const continentFilter = document.querySelector('select[name="filter-continent"]');
+    const countryFilter = document.querySelector('select[name="filter-country"]');
+    const regionFilter = document.querySelector('select[name="filter-region"]');
+
+    initLocationList(continentFilter, countryFilter, regionFilter);
+
+    fetch(`${ROOT || ''}/api/places/continents`).then(res => {
+        return res.json()
+    }).then(data => {
+        continentList = data;
+        fillOptionList(continentFilter, data, false);
+    });
+
     document.querySelector("#search-btn").addEventListener('click', ev => {
         ev.preventDefault();
         search();

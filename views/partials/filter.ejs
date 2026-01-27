@@ -15,33 +15,74 @@
             </div>
             <div class="input-group mb-3">
               <label class="input-group-text" for="filter-source">Source</label>
-              <select class="form-select" name="type" id="filter-source">
+              <select class="form-select" name="filter-source" id="filter-source">
                 <option value="">All</option>
               </select>
             </div>
             <div class="input-group mb-3">
               <label class="input-group-text" for="filter-perspective">Perspective</label>
-              <select class="form-select" name="type" id="filter-perspective">
+              <select class="form-select" name="filter-perspective" id="filter-perspective">
                 <option value="">All</option>
+              </select>
+            </div>
+
+            <!--
+            <div class="input-group mb-3">
+              <label class="input-group-text" for="filter-date-start">Date</label>
+              <input class="form-control" type="text" name="filter-date-start" id="filter-date-start">
+              <input class="form-control" type="text" name="filter-date-end" id="filter-date-end">
+            </div>
+            -->
+
+            <div class="input-group mb-3">
+              <label class="input-group-text" for="filter-perspective">Location</label>
+              <div class="w-auto">
+                <select class="form-select" name="filter-continent" id="filter-continent">
+                  <option value="">Worldwide</option>
+                </select>
+                <select disabled class="form-select" name="filter-country" id="filter-country">
+                  <option value="">Country</option>
+                </select>
+                <select disabled class="form-select" name="filter-region" id="filter-region">
+                  <option value="">Region</option>
+                </select>
+              </div>
+            </div>
+
+            <% if(hasApproved) { %>
+              <label for="filter-approved">Approved</label>
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="filter-approved" id="approved-all" checked>
+                <label class="form-check-label" for="approved-all">All</label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="filter-approved" id="approved-only">
+                <label class="form-check-label" for="approved-only">Approved only</label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="filter-approved" id="approved-none">
+                <label class="form-check-label" for="approved-none">Un-approved only</label>
+              </div>
+            <% } %>
+          </div>
+          <div class="col">
+            <div class="mb-3">
+              <label for="filter-companies" class="form-label">Companies</label>
+              <select class="form-select" size="8" name="filter-companies" id="filter-companies" multiple>
               </select>
             </div>
           </div>
           <div class="col">
-          <% if(hasApproved) { %>
-            <label for="filter-approved">Approved</label>
-            <div class="form-check">
-              <input class="form-check-input" type="radio" name="filter-approved" id="approved-all" checked>
-              <label class="form-check-label" for="approved-all">All</label>
+            <div class="mb-3">
+              <label for="filter-impacts" class="form-label">Impacts</label>
+              <select class="form-select" size="5" name="filter-impacts" id="filter-impacts" multiple>
+              </select>
             </div>
-            <div class="form-check">
-              <input class="form-check-input" type="radio" name="filter-approved" id="approved-only">
-              <label class="form-check-label" for="approved-only">Approved only</label>
+            <div class="mb-3">
+              <label for="filter-communities" class="form-label">Communities</label>
+              <select class="form-select" size="3" name="filter-communities" id="filter-communities" multiple>
+              </select>
             </div>
-            <div class="form-check">
-              <input class="form-check-input" type="radio" name="filter-approved" id="approved-none">
-              <label class="form-check-label" for="approved-none">Un-approved only</label>
-            </div>
-          <% } %>
           </div>
         </div>
         <div>

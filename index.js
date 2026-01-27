@@ -143,11 +143,38 @@ app.get('/api/search', async (req, res) => {
     const limit = Math.min(parseInt(req.query.limit) || 20, 100);
     const offset = (page - 1) * limit;
 
-    let { approved, type, source, perspective } = req.query;
+    let { approved, type, source, perspective, continent, country, region, companies, impacts, communities } = req.query;
+
+    console.log(req.query);
 
     if (approved) approved = parseInt(approved);
     if (source) source = parseInt(source);
     if (perspective) perspective = parseInt(perspective);
+
+    if (continent) continent = parseInt(continent);
+    if (country) country = parseInt(country);
+    if (region) region = parseInt(region);
+
+    if (companies) {
+        if (!Array.isArray(companies))
+            companies = [parseInt(companies)]
+        else
+            companies = companies.map(el => parseInt(el));
+    }
+
+    if (impacts) {
+        if (!Array.isArray(impacts))
+            impacts = [parseInt(impacts)]
+        else
+            impacts = impacts.map(el => parseInt(el));
+    }
+
+    if (communities) {
+        if (!Array.isArray(communities))
+            communities = [parseInt(communities)]
+        else
+            communities = communities.map(el => parseInt(el));
+    }
 
     let whereClauses = [];
     let whereArgs = [];
@@ -158,20 +185,31 @@ app.get('/api/search', async (req, res) => {
         whereClauses.push('a.approved = 1');
     }
 
-    if (source != undefined) {
-        whereClauses.push('a.source = ?');
-        whereArgs.push(source);
+
+    function addItem(name, values, xrefTable) {
+        if (values == undefined) return;
+
+        if (!Array.isArray(values)) {
+            whereClauses.push(`a.${name} = ?`)
+            whereArgs.push(values);
+            return
+        }
+
+        const paramString = values.map(_ => '?').join(', ');
+        whereClauses.push(`EXISTS (SELECT 1 FROM ${xrefTable} x WHERE x.articleId = a.id AND x.${name} in (${paramString}))`);
+        whereArgs.push(...values);
     }
 
-    if (type != undefined) {
-        whereClauses.push('a.type = ?');
-        whereArgs.push(type);
-    }
+    addItem('source', source);
+    addItem('type', type);
+    addItem('perspective', perspective);
+    addItem('continent', continent);
+    addItem('country', country);
+    addItem('region', region);
 
-    if (perspective != undefined) {
-        whereClauses.push('a.perspective = ?');
-        whereArgs.push(perspective);
-    }
+    addItem('companyId', companies, 'ArticlesCompanies');
+    addItem('impactId', impacts, 'ArticlesImpacts');
+    addItem('communityId', communities, 'ArticlesCommunities');
 
     let whereClause = '';
     if (whereClauses.length) {
@@ -200,8 +238,10 @@ app.get('/api/search', async (req, res) => {
         FROM Articles a
         ${whereClause}
         LIMIT ?
-        OFFSET ?;
+        OFFSET ?
     `;
+
+    console.log(sql);
 
     const db = await dbPromise;
     const rows = await db.all(

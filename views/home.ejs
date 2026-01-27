@@ -58,20 +58,7 @@
     const ROOT = '<%= root %>';
   </script>
   <script src="<%= root %>/common.js"></script>
-
-  <script>
-    window.addEventListener('DOMContentLoaded', function() {
-      // Get sources 
-      Promise.all([sourcesPromise, communitiesPromise, companiesPromise, impactsPromise, perspectivesPromise]).then(() => {
-        fetchItems();
-
-        fillOptionList(document.querySelector("#filter-source"), sources, clear = false);
-        fillOptionList(document.querySelector("#filter-perspective"), perspectives, clear = false);
-
-      });
-
-    });
-  </script>
+  <script src="<%= root %>/home.js"></script>
 </body>
 
 </html>

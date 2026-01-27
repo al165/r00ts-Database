@@ -1,52 +1,3 @@
-let continentList = [];
-let countryList = [];
-let regionList = [];
-
-function fillPlaceList(placeEl, data, placeholder) {
-    if (Object.keys(data).length == 0) {
-        placeEl.setAttribute("disabled", true);
-        placeEl.innerHTML = `<option>${placeholder}</option>`;
-        return;
-    }
-
-    placeEl.removeAttribute("disabled");
-    placeEl.innerHTML = '<option value="">All</option>';
-    for (const item of Object.values(data)) {
-        const option = document.createElement('option');
-        option.innerText = item['name'];
-        option.value = item['id'];
-        placeEl.appendChild(option);
-    }
-}
-
-function initMultiselect(multiselect) {
-    const options = multiselect.querySelectorAll("option");
-    for (const option of options) {
-        option.onmousedown = ev => {
-            ev.preventDefault();
-            multiselect.focus();
-            option.selected = !option.selected;
-            multiselect.dispatchEvent(new Event('change'));
-            return false;
-        };
-    }
-
-    multiselect.addEventListener('change', ev => {
-        let selected = [];
-        for (const option of options) {
-            if (option.selected)
-                selected.push(option.innerText);
-        }
-
-        let label = 'None';
-        if (selected.length) {
-            label = selected.join(', ');
-        }
-
-        multiselect.previousSibling.previousSibling.innerText = label;
-    });
-}
-
 function setSelectOption(selectEl, values, multiselect = false, dispatch = true) {
     if (values == undefined)
         return []
@@ -74,15 +25,6 @@ function setSelectOption(selectEl, values, multiselect = false, dispatch = true)
         selectEl.dispatchEvent(new Event('change'));
 
     return keys;
-}
-
-async function getPlaceList(divisionType, divisionName, placeId = "") {
-    if (!divisionName || divisionName === "All")
-        return [];
-    return fetch(`${ROOT || ''}/api/places?divisionType=${divisionType}&divisionName=${divisionName}&placeId=${placeId}`)
-        .then(res => {
-            return res.json()
-        });
 }
 
 async function setPlaceSelect(continentId, countryId, regionId, cityId) {
@@ -211,7 +153,7 @@ function editArticle(articleId) {
 
         fetch(`${ROOT || ''}/api/article?${params.toString()}`, {
             method: 'DELETE',
-        }).then(res => {
+        }).then(_res => {
             closeModal();
             deleteRow(articleData.id);
         }).catch(error => {
@@ -219,7 +161,7 @@ function editArticle(articleId) {
 
             const errorModal = new bootstrap.Modal('#message-modal');
             const errorBody = document.querySelector("#message-body");
-            errorBody.innerText = err;
+            errorBody.innerText = error;
             errorModal.show();
         });
 
@@ -535,8 +477,8 @@ window.addEventListener('DOMContentLoaded', function() {
     const continentListSelect = document.querySelector('select[name="continent"]');
     const countryListSelect = document.querySelector('select[name="country"]');
     const regionListSelect = document.querySelector('select[name="region"]');
-    // const cityListSelect = document.querySelector('select[name="city"]');
 
+    initLocationList(continentListSelect, countryListSelect, regionListSelect);
 
     let continentsPromise = fetch(`${ROOT || ''}/api/places/continents`).then(res => {
         return res.json()
@@ -544,60 +486,6 @@ window.addEventListener('DOMContentLoaded', function() {
         continentList = data;
         fillOptionList(continentListSelect, data, false);
     });
-
-    continentListSelect.addEventListener('change', _ev => {
-        regionListSelect.setAttribute('disabled', true);
-        regionListSelect.innerHTML = '<option value="">Region</option>';
-        // cityListSelect.setAttribute('disabled', true);
-        // cityListSelect.innerHTML = '<option value="">City</option>';
-
-        if (!continentListSelect.selectedOptions[0].value || continentListSelect.selectedOptions[0].value == -1) {
-            countryListSelect.setAttribute('disabled', true);
-            countryListSelect.innerHTML = '<option value="">Country</option>';
-        } else {
-            countryListSelect.innerHTML = '<option value="" selected>All</option>';
-            countryListSelect.removeAttribute('disabled');
-            const selectedContinent = continentListSelect.selectedOptions[0].innerText;
-
-            getPlaceList('continent', selectedContinent).then(data => {
-                countryList = data;
-                fillPlaceList(countryListSelect, data, "Country");
-            });
-        }
-    });
-
-    countryListSelect.addEventListener('change', _ev => {
-        // cityListSelect.setAttribute('disabled', true);
-        // cityListSelect.innerHTML = '<option value="">City</option>';
-
-        if (countryListSelect.selectedOptions[0].value == -1) {
-            regionListSelect.setAttribute('disabled', true);
-            regionListSelect.innerHTML = '<option value="">Region</option>';
-        } else {
-            regionListSelect.innerHTML = '<option value="" selected>All</option>';
-            regionListSelect.removeAttribute('disabled');
-            const selectedCountry = countryListSelect.selectedOptions[0].innerText;
-
-            getPlaceList('country', selectedCountry).then(data => {
-                regionList = data;
-                fillPlaceList(regionListSelect, data, "Region");
-            });
-        }
-    });
-
-    // regionListSelect.addEventListener('change', ev => {
-    //     if (regionListSelect.selectedOptions[0].value == -1) {
-    //         cityListSelect.setAttribute('disabled', true);
-    //         cityListSelect.innerHTML = '<option value="">City</option>';
-    //     } else {
-    //         cityListSelect.innerHTML = '<option value="" selected>All</option>';
-    //         cityListSelect.removeAttribute('disabled');
-    //         const selectedRegion = regionListSelect.selectedOptions[0].innerText;
-
-    //         // fillOptionList(cityListSelect, `<%= root %>/api/places?divisionType=region&divisionName=${selectedRegion}`, clear = false);
-    //     }
-    // });
-
 
     Promise.all([sourcesPromise, communitiesPromise, companiesPromise, impactsPromise, continentsPromise, perspectivesPromise]).then(() => {
         search();
@@ -616,5 +504,17 @@ window.addEventListener('DOMContentLoaded', function() {
 
         fillOptionList(perspectivesSelect, perspectives);
         fillOptionList(document.querySelector("#filter-perspective"), perspectives, clear = false);
+
+        const companiesFilter = document.querySelector("#filter-companies");
+        fillOptionList(companiesFilter, companies, clear = false);
+        initMultiselect(companiesFilter, false);
+
+        const impactsFilter = document.querySelector("#filter-impacts");
+        fillOptionList(impactsFilter, impacts, clear = false);
+        initMultiselect(impactsFilter, false);
+
+        const communitiesFilter = document.querySelector("#filter-communities");
+        fillOptionList(communitiesFilter, communities, clear = false);
+        initMultiselect(communitiesFilter, false);
     });
 });
