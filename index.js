@@ -179,12 +179,12 @@ app.get('/api/search', async (req, res) => {
     let whereClauses = [];
     let whereArgs = [];
 
-    if (checkAuthenticated(req) && approved == 0) {
-        whereClauses.push('a.approved = 0');
-    } else {
+    if (!checkAuthenticated(req)) {
         whereClauses.push('a.approved = 1');
+    } else if (approved != undefined) {
+        whereClauses.push('a.approved = ?');
+        whereArgs.push(approved);
     }
-
 
     function addItem(name, values, xrefTable) {
         if (values == undefined) return;
@@ -294,7 +294,7 @@ app.get('/api/perspectives', async (_req, res) => {
     return res.json(perspectives);
 });
 
-app.post('/api/article', isAuthenticated, upload.none(), async (req, res) => {
+app.post('/api/article', upload.none(), async (req, res) => {
     console.log("POST /api/article");
 
     console.log(req.body);
@@ -618,7 +618,7 @@ app.put('/api/article', isAuthenticated, upload.none(), async (req, res, next) =
     return res.status(200).json(newRow);
 });
 
-app.post('/api/source', isAuthenticated, async (req, res, next) => {
+app.post('/api/source', async (req, res, next) => {
     console.log('POST /api/souce');
     console.log(req.body);
 
@@ -662,7 +662,7 @@ app.post('/api/source', isAuthenticated, async (req, res, next) => {
     return res.status(201).json(newSourceData);
 });
 
-app.post('/api/impacts', isAuthenticated, async (req, res) => {
+app.post('/api/impacts', async (req, res) => {
     console.log('POST /api/impacts');
 
     const newImpact = removeWhitespaceExceptSpace(req.body.name);
@@ -691,7 +691,7 @@ app.post('/api/impacts', isAuthenticated, async (req, res) => {
     return res.json(newImpactData);
 });
 
-app.post('/api/communities', isAuthenticated, async (req, res) => {
+app.post('/api/communities', async (req, res) => {
     console.log('POST /api/communities');
 
     const newCommunity = removeWhitespaceExceptSpace(req.body.name);
@@ -720,7 +720,7 @@ app.post('/api/communities', isAuthenticated, async (req, res) => {
     return res.status(201).json(newCommunityData);
 });
 
-app.post('/api/companies', isAuthenticated, async (req, res) => {
+app.post('/api/companies', async (req, res) => {
     console.log('POST /api/companies');
 
     const newCompany = removeWhitespaceExceptSpace(req.body.name);

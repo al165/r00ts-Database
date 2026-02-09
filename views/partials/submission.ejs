@@ -1,0 +1,160 @@
+<div class="modal fade" id="add-modal" tabindex="-1" aria-labelledby="addModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        Submit article
+      </div>
+      <form id="add-article">
+        <div class="modal-body mb-3">
+          <input type="hidden" name="id" value="">
+
+          <% if(!hasApproved) { %>
+          <p>Submit your data center article here.</p>
+          <p><em>Your submission will remain hidden from public until it is approved by an admin!</em></p> 
+          <% } %>
+
+          <p>Hover over the name of the field for more information.</p>
+
+          <!-- Title -->
+          <div class="input-group mb-3">
+            <span class="input-group-text" data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-title="Title of the article.">Title</span>
+            <input type="text" name="title" class="form-control" placeholder="Title" aria-label="Title" required>
+          </div>
+
+          <!-- URL -->
+          <div class="input-group mb-3">
+            <span class="input-group-text" for="url" data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-title="URL of the article.">URL</span>
+            <input type="text" name="url" class="form-control" placeholder="URL" aria-label="URL" required>
+          </div>
+
+          <!-- Source -->
+          <div class="input-group mb-3">
+            <span class="input-group-text" for="article-source" data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-html="true" data-bs-title="Select the source of the article.<br>To add new articles, click 'new' and submit the name and homepage of the source. <br>For social media post, try to find the homepage of the organisation or user who created the post, rather than setting source to the platform itself.">Source</span>
+            <select class="form-select" id="article-source" name="source">
+              <option value="" selected>Choose...</option>
+            </select>
+            <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown"
+              aria-expanded="false">new</button>
+            <div class="dropdown-menu p-2">
+              <div class="mb-3">
+                <input type="text" placeholder="Name" id="new-source-name">
+                <input type="text" placeholder="Homepage" id="new-source-url">
+                <button disabled class="btn btn-primary" id="new-source-submit">add</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Date -->
+          <div class="input-group mb-3">
+            <label class="input-group-text" for="article-date" data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-title="Date the article was published.">Date</label>
+            <input class="form-control" type="text" name="date" id="article-date">
+          </div>
+
+          <!-- Type -->
+          <div class="input-group mb-3">
+            <label class="input-group-text" for="article-type" data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-title="Type of article.">Type</label>
+            <select class="form-select" name="type" id="article-type">
+              <option value="article" selected>Article</option>
+              <option value="resource">Resource</option>
+              <option value="press-release">Press release</option>
+              <option value="meme">Meme</option>
+            </select>
+          </div>
+
+          <!-- Perspective -->
+          <div class="input-group mb-3">
+            <label class="input-group-text" for="article-perspective" data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-html="true" data-bs-title="Perspective of article.<br>Is the article source netural, or is for or against data centers?">Perspective</label>
+            <select class="form-select" value="" id="article-perspective" name="perspective">
+            </select>
+          </div>
+
+          <!-- Companies -->
+            <div class="input-group mb-3">
+            <label class="input-group-text" data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-title="List any companies mentioned in the article. You can select multiple. Add a new company with the 'new' button.">Companies</label>
+            <button class="btn btn-outline-secondary dropdown-toggle text-start" type="button"
+              data-bs-toggle="dropdown" aria-expanded="false">None</button>
+            <select class="dropdown-menu" name="companies" multiple id="companies-select"
+              aria-label="Companies multiselect menu">
+            </select>
+            <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown"
+              aria-expanded="false">new</button>
+            <div class="dropdown-menu p-2">
+              <div class="mb-3">
+                <input type="text" placeholder="Name" id="new-company-name">
+                <button class="btn btn-primary" id="new-company-submit">add</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Impacts -->
+          <div class="input-group mb-3">
+            <label class="input-group-text" data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-title="List any impacts that the article metions. You can select multiple, and add any new ones with the 'new' button.">Impacts</label>
+            <button class="btn btn-outline-secondary dropdown-toggle text-start" type="button"
+              data-bs-toggle="dropdown" aria-expanded="false">None</button>
+            <select class="dropdown-menu" name="impacts" multiple id="impact-select"
+              aria-label="Impact multiselect menu">
+            </select>
+            <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown"
+              aria-expanded="false">new</button>
+            <div class="dropdown-menu p-2">
+              <div class="mb-3">
+                <input type="text" placeholder="Name" id="new-impact-name">
+                <button class="btn btn-primary" id="new-impact-submit">add</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Communities -->
+          <div class="input-group mb-3">
+            <label class="input-group-text" data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-title="List any communities that are mentioned in the article. You can select multiple, and can add a new group with the 'new' button.">Communities</label>
+            <button class="btn btn-outline-secondary dropdown-toggle text-start" type="button"
+              data-bs-toggle="dropdown" aria-expanded="false">None</button>
+            <select class="dropdown-menu" name="communities" multiple id="communities-select"
+              aria-label="Communities multiselect menu">
+            </select>
+            <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown"
+              aria-expanded="false">new</button>
+            <div class="dropdown-menu p-2">
+              <div class="mb-3">
+                <input type="text" placeholder="Name" id="new-community-name">
+                <button class="btn btn-primary" id="new-community-submit">add</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Place -->
+          <div class="input-group mb-3">
+            <label class="input-group-text" data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-html="true" data-bs-title="Select the location the article covers.<br>Try to be specific as possible, but if multiple locations are mentioned, select the region, country or continent that covers them all.">Place</label>
+            <select name="continent" class="form-select" aria-label="Continent select menu">
+              <option value="">Worldwide</option>
+            </select>
+            <select name="country" disabled class="form-select" aria-label="Country select menu">
+              <option value="">Country</option>
+            </select>
+            <select name="region" disabled class="form-select" aria-label="Region select menu">
+              <option value="">Region</option>
+            </select>
+          </div>
+
+          <!-- Notes -->
+          <div class="input-group mb-3">
+            <label class="input-group-text" for="article-notes" data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-title="Add any additional notes or context about the article that do not fit in any of the above fields.">Notes</label>
+            <textarea class="form-control" id="article-notes" name="notes"></textarea>
+          </div>
+
+          <% if(hasApproved) { %>
+            <!-- Approved -->
+            <input class="form-check-input" type="checkbox" id="approved" name="approved">
+            <label class="form-check-label" for="approved">Approved</label>
+          <% } %>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" id="delete-article" class="btn btn-danger invisible">Delete</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          <button type="button" id="send-article" class="btn btn-primary">Add</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,15 @@
+-- UP
+
+ALTER TABLE Sources ADD approved INTEGER DEFAULT 0;
+ALTER TABLE Impacts ADD approved INTEGER DEFAULT 0;
+ALTER TABLE Communities ADD approved INTEGER DEFAULT 0;
+ALTER TABLE Companies ADD approved INTEGER DEFAULT 0;
+
+
+-- DOWN
+
+ALTER TABLE Sources DROP COLUMN approved;
+ALTER TABLE Impacts DROP COLUMN approved;
+ALTER TABLE Communities DROP COLUMN approved;
+ALTER TABLE Companies DROP COLUMN approved;
+
