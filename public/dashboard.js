@@ -136,8 +136,62 @@ function updateRow(item) {
     }
 }
 
+async function sendCSV() {
+    const formData = new FormData(document.querySelector("#add-csv"));
+    const submitButton = this.document.querySelector("#send-csv");
+    submitButton.disabled = true;
+    submitButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span><span class="sr-only">Submitting...</span>';
+
+    try {
+        await fetch(`${ROOT || ''}/api/csv`, {
+            method: "POST",
+            body: formData,
+        }).then(res => {
+            return res.json();
+        }).then(messages => {
+            if (messages.error) {
+                throw new Error(messages.error);
+            }
+
+            resetButton('Upload', 'send-csv');
+            closeModal('csv-modal');
+
+            const errorModal = new bootstrap.Modal('#message-modal');
+            const errorBody = document.querySelector("#message-body");
+            for (const msg of messages) {
+                const m = document.createElement('p');
+                m.innerText = msg;
+                errorBody.appendChild(m);
+            }
+            errorModal.show();
+
+        }).catch(err => {
+            resetButton('Upload', 'send-csv');
+            closeModal('csv-modal');
+
+            const errorModal = new bootstrap.Modal('#message-modal');
+            const errorBody = document.querySelector("#message-body");
+            errorBody.innerText = err;
+            errorModal.show();
+        });
+    } catch (error) {
+        resetButton('Upload', 'send-csv');
+        closeModal('csv-modal');
+
+        const errorModal = new bootstrap.Modal('#message-modal');
+        const errorBody = document.querySelector("#message-body");
+        errorBody.innerText = err;
+        errorModal.show();
+    }
+}
+
 window.addEventListener('DOMContentLoaded', function() {
 
+    this.document.querySelector("#send-csv").addEventListener('click', async (ev) => {
+        ev.preventDefault();
+
+        const result = await sendCSV();
+    });
 
     Promise.all([sourcesPromise, communitiesPromise, companiesPromise, impactsPromise, perspectivesPromise]).then(() => {
         search();

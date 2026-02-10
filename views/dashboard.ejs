@@ -35,6 +35,7 @@
     <div>
       <button id="add-article-btn" class="btn btn-primary me-2" type="button" data-bs-toggle="modal"
         data-bs-target="#add-modal">Add article</button>
+      <button id="csv-upload" class="btn btn-primary me-2" type="button" data-bs-toggle="modal" data-bs-target="#csv-modal">Upload CSV...</button>
       <button class="btn btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#collapseExample"
         aria-expanded="false" aria-controls="collapseExample">
         Search Filter...
@@ -73,6 +74,28 @@
 
   <!-- Add new article modal -->
   <%- include('partials/submission.ejs', {hasApproved: true}); %>
+
+
+  <div class="modal fade" id="csv-modal" tabindex="-1" aria-labelledby="csvModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          Upload CSV
+        </div>
+        <form id="add-csv" class="p-4">
+            <p>
+              The CSV file must have the following columns: title, url, source, sourceUrl, type, date, location, perspective, communities, impacts, companies, notes
+            </p>
+          <label for="csv-file" class="form-label">Choose a CSV file to upload</label>
+          <input class="form-control" type="file" id="csv-file" name="csvfile" accept="text/csv"/>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            <button type="submit" id="send-csv" class="btn btn-primary">Upload</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
 
   <script>
     ROOT = '<%= root %>';

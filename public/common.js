@@ -216,8 +216,8 @@ async function getPlaceList(divisionType, divisionName, placeId = "") {
         });
 }
 
-function resetButton(text = "Add") {
-    const submitButton = document.querySelector("#send-article");
+function resetButton(text = "Add", id = "send-article") {
+    const submitButton = document.getElementById(id);
     submitButton.disabled = false;
     submitButton.innerHTML = text;
 }
@@ -415,8 +415,8 @@ function newArticle() {
     articleForm.querySelector("#delete-article").classList.add('invisible');
 }
 
-function closeModal() {
-    const modal = bootstrap.Modal.getInstance(document.getElementById('add-modal'));
+function closeModal(id = 'add-modal') {
+    const modal = bootstrap.Modal.getInstance(document.getElementById(id));
     modal.hide();
 }
 

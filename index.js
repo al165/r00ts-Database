@@ -1,5 +1,7 @@
 import express from 'express';
 import session from 'express-session';
+import csv from 'csv-parser';
+import { Readable } from 'stream'
 
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -10,7 +12,16 @@ import sqlite3 from 'sqlite3';
 import { open } from 'sqlite';
 
 import multer from 'multer';
-const upload = multer();
+const storage = multer.memoryStorage();
+const upload = multer({
+    storage: storage,
+    fileFilter: (_req, file, cb) => {
+        if (file.mimetype == 'text/csv' || file.originalname.endsWith('.csv'))
+            cb(null, true);
+        else
+            cb(new Error('Only CSV files allowed'));
+    }
+});
 
 import { config } from 'dotenv';
 
@@ -145,7 +156,7 @@ app.get('/api/search', async (req, res) => {
 
     let { approved, type, source, perspective, continent, country, region, companies, impacts, communities } = req.query;
 
-    console.log(req.query);
+    // console.log(req.query);
 
     if (approved) approved = parseInt(approved);
     if (source) source = parseInt(source);
@@ -241,7 +252,7 @@ app.get('/api/search', async (req, res) => {
         OFFSET ?
     `;
 
-    console.log(sql);
+    // console.log(sql);
 
     const db = await dbPromise;
     const rows = await db.all(
@@ -316,9 +327,7 @@ app.post('/api/article', upload.none(), async (req, res) => {
         return res.sendStatus(400);
 
     const db = await dbPromise;
-
-    if (!/^https?:\/\//i.test(url))
-        url = 'http://' + url;
+    url = fixUrl(url);
 
     // Add article
     const addedBy = "API";
@@ -618,6 +627,31 @@ app.put('/api/article', isAuthenticated, upload.none(), async (req, res, next) =
     return res.status(200).json(newRow);
 });
 
+app.post('/api/csv', isAuthenticated, upload.single('csvfile'), async (req, res, _next) => {
+    console.log('POST /api/csv');
+
+    if (!req.file)
+        return res.status(400).json({ error: 'No CSV file' });
+
+    const results = [];
+    const bufferStream = Readable.from(req.file.buffer);
+    bufferStream
+        .pipe(csv())
+        .on('data', (data) => {
+            results.push(data);
+        })
+        .on('end', async () => {
+            console.log("Finished parsing CSV:");
+            // console.log(results);
+            const messages = await batchUpload(results);
+            res.status(200).json(messages);
+        })
+        .on('error', (error) => {
+            console.error('Error parsing CSV: ' + error.message);
+            res.status(500).json({ error: 'Error parsing CSV' });
+        })
+});
+
 app.post('/api/source', async (req, res, next) => {
     console.log('POST /api/souce');
     console.log(req.body);
@@ -811,6 +845,201 @@ app.post('/api/places', async (req, res, next) => {
     return res.sendStatus(201);
 });
 
+async function batchUpload(rows) {
+    const db = await dbPromise;
+
+    let messages = [];
+    let row_count = -1;
+    let success_count = 0;
+    for (const row of rows) {
+        row_count += 1;
+        let { title, url, source, sourceUrl, type, date, location, perspective, communities, impacts, companies, notes } = row;
+
+        title = removeWhitespaceExceptSpace(title);
+        source = removeWhitespaceExceptSpace(source);
+
+        console.log(row);
+        if (!title || title == undefined) {
+            messages.push(`Row ${row_count}: "title" missing`);
+            continue;
+        }
+
+        if (!url || url == undefined) {
+            messages.push(`Row ${row_count}: "url" missing`);
+            continue;
+        }
+
+        if (!source || source == undefined) {
+            messages.push(`Row ${row_count}: "source" missing`);
+            continue;
+        }
+
+        // Check if URL already exists
+        url = fixUrl(url);
+        const urlTest = await db.get("SELECT * FROM Articles WHERE url = ?", [url]);
+
+        if (urlTest) {
+            messages.push(`Row ${row_count}: "url" (${url}) already in database - duplicate article?`);
+            continue;
+        }
+
+        // Check if source exists
+        const sourceTest = await db.get("SELECT * FROM Sources WHERE name LIKE ?", [source]);
+        let sourceId;
+        if (!sourceTest) {
+            // Not in source database, add it if possible...
+            sourceUrl = fixUrl(sourceUrl);
+            if (!sourceUrl || sourceUrl == undefined) {
+                messages.push(`Row ${row_count}: New "source", but "sourceUrl" not provided`);
+                continue;
+            }
+
+            await db.run("INSERT INTO Sources(name, url) VALUES (?, ?)", [source, sourceUrl], (error) => {
+                console.log("Error adding new source: " + error);
+                messages.push(`Row ${row_count}: Error adding source.`);
+            }).then(result => {
+                sourceId = result.lastID;
+            });
+        } else {
+            // Source in database
+            sourceId = sourceTest.id;
+        }
+
+        // Check type
+        if (type)
+            type = removeWhitespaceExceptSpace(type).toLowerCase();
+        else
+            type = "article";
+
+        // Check perspective
+        const perspectiveTest = await db.get("SELECT * FROM Perspectives WHERE name LIKE ?", [perspective]);
+        let perspectiveId;
+        if (perspectiveTest) {
+            perspectiveId = perspectiveTest.id;
+        }
+
+        // Check companies
+        let companiesIds = await getTagListIds(db, 'Companies', companies);
+
+        // Check impacts
+        let impactsIds = await getTagListIds(db, 'Impacts', impacts);
+
+        // Check communities
+        let communitiesIds = await getTagListIds(db, 'Communities', communities);
+
+        // Check location
+        const locationData = parseLocationString(location);
+        let continent, country, region;
+        let locationString = '';
+        if (locationData.continent) {
+            const continentTest = await db.get("SELECT * FROM Places WHERE type = ? AND name LIKE ?", ['continent', locationData.continent]);
+            if (continentTest) {
+                continent = continentTest.id;
+                locationString = continentTest.name;
+            }
+        }
+
+        if (continent != undefined && locationData.country) {
+            const countryTest = await db.get("SELECT * FROM Places WHERE type = ? AND name LIKE ?", ['country', locationData.country]);
+            if (countryTest) {
+                country = countryTest.id;
+                locationString += '/' + countryTest.name;
+            }
+        }
+
+        if (country != undefined && locationData.region) {
+            const regionTest = await db.get("SELECT * FROM Places WHERE type = ? AND name LIKE ?", ['region', locationData.region]);
+            if (regionTest) {
+                region = regionTest.id;
+                locationString += '/' + regionTest.name;
+            }
+        }
+
+        date = removeWhitespaceExceptSpace(date);
+        notes = removeWhitespaceExceptSpace(notes);
+
+        // Add new entry
+        const addedBy = "CSV";
+        const nowDate = new Date();
+        let year = new Intl.DateTimeFormat('en', { year: 'numeric' }).format(nowDate);
+        let month = new Intl.DateTimeFormat('en', { month: '2-digit' }).format(nowDate);
+        let day = new Intl.DateTimeFormat('en', { day: '2-digit' }).format(nowDate);
+        const addDate = `${day}/${month}/${year}`;
+
+        let articleId;
+        await db.run(
+            "INSERT INTO Articles(title, url, type, source, date, perspective, continent, country, region, location, notes, addedBy, addDate) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            [title, url, type, sourceId, date, perspectiveId, continent, country, region, locationString, notes, addedBy, addDate],
+            (error) => {
+                console.err(error);
+                messages.push(`Row ${row_count}: Error inserting article`);
+            }).then(result => {
+                articleId = result.lastID;
+            });
+
+        console.log(`New article id: ${articleId}`);
+        // Update XRef tables
+        if (companiesIds) {
+            await db.run("BEGIN TRANSACTION");
+            for (const companyId of companiesIds) {
+                await db.run("INSERT INTO ArticlesCompanies(articleId, companyId) VALUES (?, ?)", [articleId, companyId]);
+            }
+            await db.run("COMMIT");
+        }
+
+        if (impactsIds) {
+            await db.run("BEGIN TRANSACTION");
+            for (const impactId of impactsIds) {
+                await db.run("INSERT INTO ArticlesImpacts(articleId, impactId) VALUES (?, ?)", [articleId, impactId]);
+            }
+            await db.run("COMMIT");
+        }
+
+        if (communitiesIds) {
+            await db.run("BEGIN TRANSACTION");
+            for (const communityId of communitiesIds) {
+                await db.run("INSERT INTO ArticlesCommunities(articleId, communityId) VALUES (?, ?)", [articleId, communityId]);
+            }
+            await db.run("COMMIT");
+        }
+
+        messages.push(`Row ${row_count}: Sucessfully added`)
+        success_count += 1;
+
+        updateVersion(db);
+    }
+
+    if (success_count) {
+        console.log(`Sucessfully added ${success_count} articles!`);
+        messages.push(`Sucessfully added ${success_count} article${success_count > 1 ? 's' : ''}!`);
+    } else {
+        messages.push("Did not add any articles. Please check the CSV file for the errors given above.");
+    }
+
+    return messages;
+}
+
+async function getTagListIds(db, table, tagsString) {
+    const tagList = tagsString.split(',');
+    const tagIds = [];
+    for (let tag of tagList) {
+        tag = tag.trim();
+        const tagTest = await db.get(`SELECT * FROM ${table} WHERE name LIKE ?`, [tag]);
+        if (tagTest)
+            tagIds.push(tagTest.id);
+        else {
+            await db.run(`INSERT INTO ${table}(name) VALUES (?)`, [tag], (error) => {
+                console.error(`Error adding "${tag}" to ${table}: ` + error);
+                messages.push(`Row ${row_count}: Error adding "${tag}" to ${table}`);
+            }).then(result => {
+                if (result.lastID != undefined)
+                    tagIds.push(result.lastID);
+            });
+        }
+    }
+
+    return tagIds;
+}
 
 // Start Server
 const setup = async () => {
@@ -846,4 +1075,48 @@ function removeWhitespaceExceptSpace(str) {
         Unicode whitespaces like \u00A0 (non-breaking space), \u2000-\u200A (various spaces), etc.
     */
     return str.trim().replace(/[\t\n\r\f\v\u00A0\u1680\u2000-\u200A\u2028\u2029\u202F\u205F\u3000]/g, '');
+}
+
+function fixUrl(url) {
+    if (!url) return ''
+
+    url = url.trim();
+    if (!url) return ''
+
+    if (!/^https?:\/\//i.test(url))
+        return 'http://' + url;
+    return url;
+}
+
+function parseLocationString(location) {
+    let result = {};
+    if (!location || location.toLowerCase() === 'worldwide' || location.toLowerCase() === 'all') {
+        return result;
+    }
+
+    let splits = location.split('/');
+    if (!splits[0])
+        splits = splits.shift();
+
+    function checkAll(place) {
+        if (!place || place.toLowerCase() === 'all' || place === 'undefined')
+            return undefined;
+        return place;
+    }
+
+    result.continent = checkAll(splits[0]);
+    result.country = checkAll(splits[1]);
+    result.region = checkAll(splits[2]);
+
+    if (result.continent) {
+        result.location = result.continent;
+        if (result.country) {
+            result.location += '/' + result.country;
+            if (result.region) {
+                result.location += '/' + result.region;
+            }
+        }
+    }
+
+    return result;
 }
