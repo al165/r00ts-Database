@@ -1,12 +1,15 @@
 import express from 'express';
 import session from 'express-session';
 import csv from 'csv-parser';
+import { isIP, isIPv6 } from 'net';
 import { Readable } from 'stream'
 
+import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
 
 import sqlite3 from 'sqlite3';
 import { open } from 'sqlite';
@@ -24,6 +27,8 @@ const upload = multer({
 });
 
 import { config } from 'dotenv';
+
+import { IPtoInt, isIpReserved } from './ip_utils.js';
 
 const CONFIG_FILE = process.argv[2] || '.env';
 console.log("Loading config file: " + CONFIG_FILE);
@@ -54,6 +59,34 @@ if (ROOT.at(-1) === '/')
 
 console.log(`ROOT: ${ROOT}`);
 
+// networksdb API key
+const NETWORKSDB_API = process.env.NETWORKSDB_API || '';
+if (!NETWORKSDB_API)
+    console.warn("NETWORKSDB_API not set! Cannot fetch new ip block info.");
+else
+    console.log("NETWORKSDB_API found");
+
+
+// Setup continent <-> country map
+const CONTINENT_COUNTRY_LIST = {};
+
+await new Promise((resolve, reject) => {
+    fs.createReadStream('tools/countries.csv')
+        .pipe(csv())
+        .on('data', (row) => {
+            if (CONTINENT_COUNTRY_LIST[row.Continent])
+                CONTINENT_COUNTRY_LIST[row.Continent].push(row.Code);
+            else
+                CONTINENT_COUNTRY_LIST[row.Continent] = [row.Code];
+        })
+        .on('end', () => {
+            console.log('Finished creating country/continent list');
+            resolve();
+        })
+        .on('error', reject);
+});
+
+
 // Middleware setup
 app.set('view engine', 'ejs');
 app.use(express.urlencoded({ extended: true }));
@@ -66,6 +99,12 @@ app.use(session({
     resave: false,
     saveUninitialized: false
 }));
+
+// Logging all requests
+app.use((req, _res, next) => {
+    console.log(`[${req.method}] ${req.url}`);
+    next();
+});
 
 const USER = {
     username: process.env.USERNAME,
@@ -106,6 +145,27 @@ app.get('/logout', (req, res) => {
 app.get('/dashboard', isAuthenticated, async (_req, res) => {
     return res.render('dashboard', { root: ROOT, user_version });
 });
+
+app.get('/network', async (req, res) => {
+    const { id } = req.query;
+
+    const db = await dbPromise;
+    const network = await db.get("SELECT * FROM Networks WHERE id = ?", [id]);
+    console.log(network);
+
+    const datacenters = db.all("SELECT * FROM Datacenters JOIN NetworksDatacenters ON Datacenters.id = NetworksDatacenters.datacenterId WHERE NetworksDatacenters.networkId = ?", [id]);
+
+    return res.render('network', { root: ROOT, user_version, network, datacenters });
+});
+
+// app.get('/datacenter', async (req, res) => {
+//     const { id } = req.query;
+//
+//     const db = await dbPromise;
+//     const datacenter = await db.get("SELECT * FROM Datacenters WHERE id = ?", [id]);
+//
+//     return res.render('datacenter', { root: ROOT, user_version, datacenter });
+// });
 
 app.get('/', async (_req, res) => {
     return res.render('home', { root: ROOT, user_version });
@@ -306,7 +366,6 @@ app.get('/api/perspectives', async (_req, res) => {
 });
 
 app.post('/api/article', upload.none(), async (req, res) => {
-    console.log("POST /api/article");
 
     console.log(req.body);
 
@@ -435,8 +494,6 @@ app.post('/api/article', upload.none(), async (req, res) => {
 });
 
 app.delete('/api/article', isAuthenticated, async (req, res, next) => {
-    console.log("DELETE /api/article");
-
     const { id } = req.query;
     console.log(id);
 
@@ -454,8 +511,6 @@ app.delete('/api/article', isAuthenticated, async (req, res, next) => {
 });
 
 app.put('/api/article', isAuthenticated, upload.none(), async (req, res, next) => {
-    console.log("PUT /api/article");
-
     console.log(req.body);
 
     let { id, title, url, date, source, type, perspective, companies, impacts, communities, continent, country, region, city, notes, approved } = req.body;
@@ -628,8 +683,6 @@ app.put('/api/article', isAuthenticated, upload.none(), async (req, res, next) =
 });
 
 app.post('/api/csv', isAuthenticated, upload.single('csvfile'), async (req, res, _next) => {
-    console.log('POST /api/csv');
-
     if (!req.file)
         return res.status(400).json({ error: 'No CSV file' });
 
@@ -653,7 +706,6 @@ app.post('/api/csv', isAuthenticated, upload.single('csvfile'), async (req, res,
 });
 
 app.post('/api/source', async (req, res, next) => {
-    console.log('POST /api/souce');
     console.log(req.body);
 
     const newSource = removeWhitespaceExceptSpace(req.body.newSource);
@@ -697,8 +749,6 @@ app.post('/api/source', async (req, res, next) => {
 });
 
 app.post('/api/impacts', async (req, res) => {
-    console.log('POST /api/impacts');
-
     const newImpact = removeWhitespaceExceptSpace(req.body.name);
     if (newImpact.length == 0)
         try {
@@ -726,8 +776,6 @@ app.post('/api/impacts', async (req, res) => {
 });
 
 app.post('/api/communities', async (req, res) => {
-    console.log('POST /api/communities');
-
     const newCommunity = removeWhitespaceExceptSpace(req.body.name);
     if (newCommunity.length == 0)
         try {
@@ -755,8 +803,6 @@ app.post('/api/communities', async (req, res) => {
 });
 
 app.post('/api/companies', async (req, res) => {
-    console.log('POST /api/companies');
-
     const newCompany = removeWhitespaceExceptSpace(req.body.name);
     if (newCompany.length == 0)
         try {
@@ -791,8 +837,6 @@ app.get('/api/places/continents', async (_req, res) => {
 });
 
 app.get('/api/places', async (req, res) => {
-    console.log('GET /api/places');
-
     const { divisionType, divisionName, placeId } = req.query;
 
     if (!(divisionType && divisionName) && !placeId) {
@@ -817,8 +861,265 @@ app.get('/api/places', async (req, res) => {
     }
 });
 
+app.post('/api/ip', async (req, res) => {
+    const { ip } = req.query;
+    const { clues } = req.body;
+
+    console.log(ip);
+
+    if (!ip || isIP(ip) == 0)
+        return res.sendStatus(400);
+
+    if (isIPv6(ip)) {
+        console.warn(`IPv6 not supported. ${ip}`)
+        return res.sendStatus(400);
+    }
+
+    const ip_int = IPtoInt(ip);
+    if (isIpReserved(ip_int)) {
+        return res.json({ reserved: true });
+    }
+
+    const db = await dbPromise;
+    let net = await db.get("SELECT * FROM Networks WHERE ? BETWEEN start_int AND end_int", [ip_int]);
+
+    if (!net) {
+        console.log(`No network found for IP ${ip}, fetching from networksdb.io...`)
+
+        if (!NETWORKSDB_API) {
+            console.warn("NETWORKSDB_API not set, cannot complete request");
+            return res.sendStatus(500);
+        }
+
+        const params = new URLSearchParams({ ip });
+        const r = await fetch(`https://networksdb.io/api/ip-info?${params}`, {
+            method: 'GET',
+            headers: {
+                'X-Api-Key': NETWORKSDB_API
+            }
+        });
+
+        const json = await r.json();
+        console.log(json);
+
+        const { organisation, network, asn } = json;
+        const organisation_name = organisation.name;
+        const { netname: network_name, description, first_ip: ip_start, last_ip: ip_end, cidr } = network;
+        let as_number = null;
+        if (asn && asn.asn)
+            as_number = asn.asn;
+
+        const start_int = IPtoInt(ip_start);
+        const end_int = IPtoInt(ip_end);
+        let id;
+
+        try {
+            const result = await db.run(
+                "INSERT INTO Networks(organisation_name, network_name, description, ip_start, ip_end, start_int, end_int, ip_cidr, asn, clues) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                [organisation_name, network_name, description, ip_start, ip_end, start_int, end_int, cidr, as_number, JSON.stringify(clues)],
+            );
+            id = result.lastID;
+        } catch (error) {
+            console.error("Error inserting into Networks:");
+            console.error(error);
+            return res.sendStatus(500);
+        }
+
+        net = {
+            id,
+            organisation_name,
+            network_name,
+            description,
+            ip_start,
+            ip_end,
+            start_int,
+            end_int,
+            ip_cidr: cidr,
+            asn: as_number,
+            identified: 0,
+        }
+    }
+
+    return res.json(net);
+});
+
+async function findDatacenters(net_id, country_code, level = 1) {
+    console.log("findDatacenters");
+    console.log(`${net_id} ${country_code} ${level}`);
+
+    const fac_url_base = "https://peeringdb.com/api/netfac";
+    const searchParams = new URLSearchParams({ net_id });
+
+    if (country_code && level != 3) {
+        if (level == 1) {
+            searchParams.append('country__in', country_code);
+        }
+        else if (level == 2) {
+            let neighbours = [country_code];
+            for (const continent of Object.keys(CONTINENT_COUNTRY_LIST)) {
+                if (CONTINENT_COUNTRY_LIST[continent].includes(country_code)) {
+                    neighbours = CONTINENT_COUNTRY_LIST[continent];
+                    break;
+                }
+            }
+            searchParams.append('country__in', neighbours.join(','));
+        }
+    }
+
+    let fac_url = `${fac_url_base}?${searchParams.toString()}`;
+    console.log(fac_url);
+
+    let fac_info = await fetch(fac_url).then(r => r.json()).catch(err => {
+        console.error("Error fetching from peeringdb");
+        console.error(err);
+        return { data: [] };
+    });
+    console.log(fac_info);
+
+    return fac_info;
+}
+
+app.get('/api/datacenter', async (req, res) => {
+    let { asn, country_code, level } = req.query;
+
+    if (!country_code && level === undefined)
+        level = 3;
+    else if (country_code && level == undefined)
+        level = 1;
+
+    console.log(asn);
+    console.log(country_code);
+    console.log(level);
+
+    if (!asn)
+        return res.json([]);
+
+    // Search local database for any info...
+    const db = await dbPromise;
+    const network = await db.get("SELECT * FROM Networks WHERE asn = ?", [asn]);
+
+    if (!network) {
+        console.log(`ASN ${asn} not known to this database`);
+        return res.json([]);
+    }
+
+    // let query = `
+    //     SELECT Datacenters.* FROM Datacenters 
+    //     JOIN NetworksDatacenters ON Datacenters.id = NetworksDatacenters.datacenterId
+    //     JOIN Networks ON NetworksDatacenters.networkId = Networks.id
+    //     WHERE Networks.asn = ?
+    // `;
+    // let query_values = [asn];
+    // if (country_code) {
+    //     query += ' AND Datacenters.country_code LIKE ?';
+    //     query_values.push(country_code);
+    // }
+    //
+    // const facilities = await db.all(query, query_values);
+
+    // if (!facilities || facilities.length == 0) {
+    if (true) {
+        const url = `https://peeringdb.com/api/net?asn=${asn}`;
+        console.log(url);
+
+        const net_info = await fetch(url).then(r => r.json());
+        let net_id;
+        try {
+            net_id = net_info['data'][0]['id'];
+        } catch (error) {
+            console.error(`Error getting ASN id`);
+            console.error(error);
+            console.log(net_info);
+            return res.json([]);
+        }
+
+        let fac_info = await findDatacenters(net_id, country_code, level);
+
+        if (country_code) {
+            while (level < 3 && (!fac_info || !fac_info.data || fac_info.data.length == 0)) {
+                level += 1;
+                console.log(`No Datacenters found, increasing level to ${level}`);
+                fac_info = await findDatacenters(net_id, country_code, level)
+            }
+        }
+
+        // await db.run("BEGIN TRANSACTION");
+        // for (const fac of fac_info.data) {
+        //     const result = await db.run("INSERT INTO Datacenters(fac_id, name, city, country_code) VALUES (?, ?, ?, ?)", [fac.fac_id, fac.name, fac.city, fac.country]);
+        //     await db.run("INSERT INTO NetworksDatacenters(networkId, datacenterId) VALUES(?, ?)", [network.id, result.lastID]);
+        // }
+        // await db.run("COMMIT");
+
+        if (fac_info.data.length) {
+            console.log("Fetching location data of facilities");
+
+            const fac_ids = fac_info.data.map(el => el.fac_id);
+            const fac_url_base = "https://peeringdb.com/api/fac";
+            const searchParams = new URLSearchParams();
+            searchParams.append('id__in', fac_ids.join(','));
+            let fac_url = `${fac_url_base}?${searchParams.toString()}`;
+            console.log(fac_url);
+
+            const fac_info_details = await fetch(fac_url)
+                .then(res => res.json())
+                .catch(err => {
+                    console.log(err);
+                    return fac_info;
+                });
+
+            console.log(fac_info_details);
+            return res.json(fac_info_details.data);
+        } else {
+            return res.json([]);
+        }
+
+    } else {
+        // TODO Cache facility data in own database!
+        return res.json(facilities);
+    }
+
+    return res.json([]);
+});
+
+app.post('/api/clue', async (req, res) => {
+    const { ip } = req.query;
+    const { clues } = req.body;
+
+    console.log(ip);
+    console.log(clues);
+
+    if (!ip || isIP(ip) == 0)
+        return res.sendStatus(400);
+
+    if (isIPv6(ip)) {
+        console.warn(`IPv6 not supported. ${ip}`)
+        return res.sendStatus(400);
+    }
+
+    if (!clues || clues.length == 0)
+        return res.sendStatus(200);
+
+    console.log(clues);
+
+    const ip_int = IPtoInt(ip);
+    console.log(ip_int);
+    if (isIpReserved(ip_int)) {
+        return res.json({ reserved: true });
+    }
+
+    const db = await dbPromise;
+    let network = await db.get("SELECT * FROM Networks WHERE ? BETWEEN start_int AND end_int", [ip_int]);
+
+    if (!network)
+        return res.sendStatus(200);
+
+    const result = await db.run("UPDATE Networks SET clues = ? WHERE id = ?", [JSON.stringify(clues), network.id]);
+    console.log(result.changes);
+
+    return res.sendStatus(200);
+});
+
 app.post('/api/places', async (req, res, next) => {
-    console.log("POST /api/places");
     const { divisionType, divisionName, placeName } = req.body;
     if (!divisionType || !divisionName || !placeName) {
         return res.sendStatus(400);
@@ -1120,3 +1421,5 @@ function parseLocationString(location) {
 
     return result;
 }
+
+
