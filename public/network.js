@@ -22,6 +22,10 @@ const VERCEL_LOCATIONS = {
     "yul1": { "region": "ca-central-1", "city": "Montréal", "country": "Canada", "countryCode": "CA" }
 };
 
+let article_terms = new Set();
+if (network_data)
+    article_terms.add(network_data.organisation_name)
+
 let countryCode;
 if (network_data && !network_data.identified) {
     // Get possible geo-location
@@ -58,6 +62,7 @@ if (network_data && !network_data.identified) {
                     const vercel_location = VERCEL_LOCATIONS[clue.regionCode];
                     countryCode = vercel_location.countryCode;
                     header_clue.innerHTML = `A response from this ip range contained the header <span class="mono">${clue.header}</span> with the location code <b><span class="mono">${clue.regionCode}</span></b>, which is located in <b>${vercel_location.city}, ${vercel_location.country}</b> (very likely!)`;
+                    article_terms.add(vercel_location.country);
                 } else if (clue.type === "Cloudfare" || clue.type === "Amazon CloudFront") {
                     header_clue.innerHTML = `A response from this ip range contained the header <span class="mono">${clue.header}</span> which contained the airport code <b><span class="mono">${clue.IATACode}</span></b>. Check <a href="https://www.iata.org/en/publications/directories/code-search/" target="_blank" rel="noopener noreferrer">IATA.org</a> to search for which city this dataceter is located near.`;
                 } else if (clue.type === "Akamai CDN") {
@@ -68,7 +73,6 @@ if (network_data && !network_data.identified) {
     }
     else
         header_clue.remove();
-
 
     if (network_data.asn) {
         if (!countryCode) {
@@ -110,6 +114,7 @@ async function getFacilities() {
     console.log(net_info);
     if (!net_info || net_info.length == 0) {
         clue.innerHTML = 'No disclosed facility info can be found for this network from <a href="https://www.peeringdb.com" target="_blank" rel="noopener noreferrer">PeeringDB</a>.';
+        searchArticles();
         return;
     }
 
@@ -125,36 +130,81 @@ async function getFacilities() {
         const coords = [fac_info.latitude, fac_info.longitude];
         all_coords.push(coords);
 
-        const marker = L.circleMarker(coords, {
-            radius: 6,
-            color: '#fff',
-            weight: 2,
-            fillColor: '#c85050',
-            fillOpacity: 1,
-        }).addTo(map).bindTooltip(fac_info.name);
+        if (map) {
+            const marker = L.circleMarker(coords, {
+                radius: 6,
+                color: '#fff',
+                weight: 2,
+                fillColor: '#c85050',
+                fillOpacity: 1,
+            }).addTo(map).bindTooltip(fac_info.name);
 
-        marker.on('click', () => {
-            let google_url = `https://www.google.com/maps?q=${coords.join(',')}`;
-            window.open(google_url, '_blank').focus();
-        });
+            marker.on('click', () => {
+                let google_url = `https://www.google.com/maps?q=${coords.join(',')}`;
+                window.open(google_url, '_blank').focus();
+            });
+        }
+
+        article_terms.add(fac_info.city);
+        article_terms.add(fac_info.country_name);
+        // article_terms.add(fac_info.org_name); 
     }
 
-    if (all_coords.length == 1)
-        map.setView(all_coords[0], 15);
-    else if (all_coords.length > 1)
-        map.fitBounds(L.latLngBounds(all_coords), { padding: [40, 40] });
+    if (map) {
+        if (all_coords.length == 1)
+            map.setView(all_coords[0], 15);
+        else if (all_coords.length > 1)
+            map.fitBounds(L.latLngBounds(all_coords), { padding: [40, 40] });
+    }
 
     clue.appendChild(facility_list);
     clueList.appendChild(clue);
+
+    searchArticles();
 }
 
-const map = L.map('map', { zoomControl: false }).setView([52.37, 4.90], 13);
+// Mini map
+let map;
+if (network_data) {
+    map = L.map('map', { zoomControl: false }).setView([52.37, 4.90], 13);
 
-L.control.zoom({ position: 'bottomright' }).addTo(map);
-// L.tileLayer('http://{s}.tile.osm.org/{z}/{x}/{y}.png', {
-L.tileLayer('http://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png', {
-    attribution: '© CartoDB',
-    maxZoom: 17
-}).addTo(map);
+    L.control.zoom({ position: 'bottomright' }).addTo(map);
+    // L.tileLayer('http://{s}.tile.osm.org/{z}/{x}/{y}.png', {
+    L.tileLayer('http://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png', {
+        attribution: '© CartoDB',
+        maxZoom: 17
+    }).addTo(map);
 
+}
 
+function searchArticles() {
+    const query = Array.from(article_terms).join("|");
+
+    // TODO: strip common words (e.g. "Data", "Internet", "Center" etc)
+    console.log(query);
+
+    //
+    fetch(`/search?q=${query}`)
+        .then(res => res.json())
+        .then(articles => {
+            console.log(articles);
+            if (!articles.results || !articles.results.length)
+                return;
+
+            const articleList = document.getElementById("article-list");
+            articleList.innerHTML = `<p>We found some articles related to these results:</p>`
+
+            const listEl = document.createElement("ul");
+            for (const article of articles.results) {
+                const articleEl = document.createElement('li');
+                articleEl.innerHTML = `<a href=${article.url} target="_blank" rel="noopener noreferrer">${article.title}</a> (${article._score})`
+
+                listEl.appendChild(articleEl);
+            }
+            articleList.appendChild(listEl);
+        }).catch(err => {
+            console.error("Error fetching articles");
+            consoel.error(err);
+        })
+
+}

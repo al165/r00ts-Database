@@ -1,90 +1,99 @@
 <!DOCTYPE html>
 <html lang="en">
-
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>r00ts Database - Network</title>
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-ka7Sk0Gln4gmtz2MlQnikT1wXgYsOg+OMhuP+IlRH9sENBO0LRn5q+8nbTov4+1p" crossorigin="anonymous"></script>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-
-   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>r00ts Database - Network</title>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-ka7Sk0Gln4gmtz2MlQnikT1wXgYsOg+OMhuP+IlRH9sENBO0LRn5q+8nbTov4+1p" crossorigin="anonymous"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
      crossorigin=""/>
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+      .mono {
+        font-family: monospace;
+      }
 
-  <style>
-    .mono {
-      font-family: monospace;
-    }
+      #facility-info {
+        display: flex;
+      }
 
-    #facility-info {
-      display: flex;
-    }
-
-    #map {
-      height: 300px;
-      width: 50%;
-      margin: 2em;
-    }
-
-  </style>
-</head>
-
-
-<body class="bg-light"> 
-  <header class="p-4"><h1>Network</h1></header>
-  <% if(!network) { %>
-    <div class="card m-4 p-3">
-      Network not found!
-    </div>
-  <% } else { %>
-    <div class="card m-4 p-3">
-      <p>We have some info about this network:</p>
-      <table class="table">
-        <tbody>
-          <tr><td class="text-end">Organisation:</td><td><%= network.organisation_name %></td></tr>
-          <tr><td class="text-end">Network:</td><td><%= network.network_name %></td></tr>
-          <tr><td class="text-end">Description:</td><td><%= network.description %></td></tr>
-          <tr><td class="text-end">IP Range:</td><td><%= network.ip_cidr %></td></tr>
-          <tr><td class="text-end">AS Number:</td><td><%= network.asn %></td></tr>
-        </tbody> 
-      </table>
-
-      <div id="facility-info">
-        <div>
-          <p>We don't (yet) have any confirmed information about this datacenter's physical location. Help us find it!</p>
-          <p>Here are some additional clues:</p>
-          <ul id="clues" class="placeholder-glow">
-            <li id="ip-location-clue"><span class="placeholder col-1"></span> <span class="placeholder col-2"></span></li>
-            <li id="header-clue"><span class="placeholder col-2"></span> <span class="placeholder col-1"></span></li>
-            <li id="facility-clue">
-              <span class="placeholder col-1"></span>
-              <ul>
-                <li><span class="placeholder col-1"></span></li>
-                <li><span class="placeholder col-1"></span></li>
-              </ul>
-            </li>
-          </ul>
-
-          <div id="#datacenter-list"></div>
-        </div>
-        <div id="map"></div>
+      #map {
+        height: 300px;
+        width: 50%;
+        margin: 2em;
+      }
+    </style>
+  </head>
+  <body class="bg-light">
+    <header class="p-4">
+      <h1>Network</h1>
+    </header>
+    <% if(!network) { %>
+      <div class="card m-4 p-3">
+        Network not found!
       </div>
-      <p>Here are some useful links to help narrow it down further:</p>
-      <ul>
-        <li><a href="https://www.datacentermap.com/" target="_blank" rel="noopener noreferrer">Data Center Map</a></li>
-        <li><a href="https://www.datacenters.com" target="_blank" rel="noopener noreferrer">DataCenters.com</a></li>
-        <li><a href="https://www.digitalrealty.com/data-centers" target="_blank" rel="noopener noreferrer">Digital Realty</a></li>
-      </ul>
-    <!-- <pre><%= JSON.stringify(network, null, 2) %></pre> -->
-    </div>
-  <% } %>
-  <script>
-  const network_data = <%- JSON.stringify(network) %>;
-  </script>
-
-  <script defer src="network.js"></script>
-</body>
-</html>
+      <% } else { %>
+      <div class="card m-4 p-3">
+        <p>We have some info about this network:</p>
+        <table class="table">
+          <tbody>
+            <tr>
+              <td class="text-end">Organisation:</td>
+              <td><%= network.organisation_name %></td>
+            </tr>
+            <tr>
+              <td class="text-end">Network:</td>
+              <td><%= network.network_name %></td>
+            </tr>
+            <tr>
+              <td class="text-end">Description:</td>
+              <td><%= network.description %></td>
+            </tr>
+            <tr>
+              <td class="text-end">IP Range:</td>
+              <td><%= network.ip_cidr %></td>
+            </tr>
+            <tr>
+              <td class="text-end">AS Number:</td>
+              <td><%= network.asn %></td>
+            </tr>
+          </tbody>
+        </table>
+        <div id="facility-info">
+          <div>
+            <p>We don't (yet) have any confirmed information about this datacenter's physical location. Help us find it!</p>
+            <p>Here are some additional clues:</p>
+            <ul id="clues" class="placeholder-glow">
+              <li id="ip-location-clue"><span class="placeholder col-1"></span> <span class="placeholder col-2"></span></li>
+              <li id="header-clue"><span class="placeholder col-2"></span> <span class="placeholder col-1"></span></li>
+              <li id="facility-clue">
+                <span class="placeholder col-1"></span>
+                <ul>
+                  <li><span class="placeholder col-1"></span></li>
+                  <li><span class="placeholder col-1"></span></li>
+                </ul>
+              </li>
+            </ul>
+            <div id="#datacenter-list"></div>
+          </div>
+          <div id="map"></div>
+        </div>
+        <!-- <p>Here are some useful links to help narrow it down further:</p> -->
+        <!-- <ul> -->
+        <!--   <li><a href="https://www.datacentermap.com/" target="_blank" rel="noopener noreferrer">Data Center Map</a></li> -->
+        <!--   <li><a href="https://www.datacenters.com" target="_blank" rel="noopener noreferrer">DataCenters.com</a></li> -->
+        <!--   <li><a href="https://www.digitalrealty.com/data-centers" target="_blank" rel="noopener noreferrer">Digital Realty</a></li> -->
+        <!-- </ul> -->
+        <div id="article-list">
+        </div>
+      </div>
+      <script defer src="network.js"></script>
+      <% } %>
+      <script>
+        const network_data = <%- network ? JSON.stringify(network) : false %>;
+      </script>
+    </body>
+  </html>

@@ -14,6 +14,8 @@ const __dirname = path.dirname(__filename);
 import sqlite3 from 'sqlite3';
 import { open } from 'sqlite';
 
+import Fuse from 'fuse.js';
+
 import multer from 'multer';
 const storage = multer.memoryStorage();
 const upload = multer({
@@ -29,6 +31,7 @@ const upload = multer({
 import { config } from 'dotenv';
 
 import { IPtoInt, isIpReserved } from './ip_utils.js';
+import { COUNTRY_CODE_TO_NAME } from './country_codes.js';
 
 const CONFIG_FILE = process.argv[2] || '.env';
 console.log("Loading config file: " + CONFIG_FILE);
@@ -197,17 +200,41 @@ const relations = [
 
 const relationSql = relations.map(r => `
     (
-    SELECT COALESCE(
-        json_group_array(
-        json_object('id', j.id, 'name', j.name)
-        ),
-        json('[]')
-    )
-    FROM ${r.table} x
-    JOIN ${r.joinTable} j ON j.id = x.${r.joinKey}
-    WHERE x.articleId = a.id
+        SELECT COALESCE(
+            json_group_array(
+                json_object('id', j.id, 'name', j.name)
+            ),
+            json('[]')
+        )
+        FROM ${r.table} x
+        JOIN ${r.joinTable} j ON j.id = x.${r.joinKey}
+        WHERE x.articleId = a.id
     ) AS ${r.name}
 `).join(",\n");
+
+app.get('/search', async (req, res) => {
+    // Fuzzy string search
+
+    const { q } = req.query;
+    console.log(q);
+
+    if (!q || q.trim().length < 2)
+        return res.status(400).json({ error: 'Query must be at least 2 characters' });
+
+    const sql = `
+        SELECT a.id, a.title, a.url, GROUP_CONCAT(c.name, ', ') AS companies 
+        FROM Articles a
+        LEFT JOIN ArticlesCompanies ac ON a.id = ac.articleId
+        LEFT JOIN Companies c ON ac.companyId = c.id
+        GROUP BY a.id
+    `;
+
+    const db = await dbPromise;
+    const rows = await db.all(sql, []);
+
+    const results = fuzzySearch(rows, q, ['title', 'companies']);
+    return res.json({ results });
+});
 
 app.get('/api/search', async (req, res) => {
     const page = parseInt(req.query.page) || 1;
@@ -974,6 +1001,12 @@ async function findDatacenters(net_id, country_code, level = 1) {
         console.error(err);
         return { data: [] };
     });
+
+    fac_info.data.forEach((val, index) => {
+        val['country_name'] = COUNTRY_CODE_TO_NAME[val.country];
+        console.log(`${val.country_name}`);
+        fac_info.data[index] = val
+    });
     console.log(fac_info);
 
     return fac_info;
@@ -1066,6 +1099,12 @@ app.get('/api/datacenter', async (req, res) => {
                     console.log(err);
                     return fac_info;
                 });
+
+            fac_info_details.data.forEach((val, index) => {
+                val['country_name'] = COUNTRY_CODE_TO_NAME[val.country];
+                console.log(`${val.country_name}`);
+                fac_info_details.data[index] = val
+            });
 
             console.log(fac_info_details);
             return res.json(fac_info_details.data);
@@ -1366,6 +1405,23 @@ async function updateVersion(db) {
     await db.run(`PRAGMA user_version = ${user_version}`, [], (err) => {
         console.log(err);
     });
+}
+
+function fuzzySearch(items, query, keys = ['title', 'companies']) {
+    const fuse = new Fuse(items, {
+        keys,
+        threshold: 0.2,
+        useTokenSearch: true,
+        includeScore: true,
+        ignoreLocation: true,
+        includeMatches: true,
+        minMatchCharLength: 2,
+    });
+
+    return fuse.search(query).map(({ item, score }) => ({
+        ...item,
+        _score: score,  // lower = better match
+    }));
 }
 
 function removeWhitespaceExceptSpace(str) {
